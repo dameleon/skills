@@ -1,0 +1,63 @@
+# plan-refinement skill (#11) の効果を ablation で測る最小構成。
+# planner-eval skill の初期 user story として同梱。
+#
+# 使い方:
+#   /planner-eval skills/planner-eval/examples/plan-refinement-ablation.yaml
+#
+# 比較対象:
+#   - baseline: Claude Code 標準 planner の出力をそのまま executor に渡す
+#   - refinement: 標準 planner の後段で plan-refinement skill を呼んでから executor に渡す
+#
+# 動的指標 (再現性 / 仮定数 / golden 一致 / 逸脱率 / OPEN 整合性) と
+# 静的指標 (具体性 / 前方参照違反 / 検証ステップ被覆 / OPEN マーカー数) を出力する。
+
+tasks:
+  - id: add-user-endpoint
+    research_artifact: |
+      must-do:
+        - POST /users endpoint を新規追加
+        - body は email/password の zod schema で検証
+        - 失敗時 400, 成功時 201
+        - 新規テストを tests/api/users.test.ts に追加
+    # golden_diff: examples/goldens/add-user-endpoint.diff  # 任意。指定すると golden 一致率が出る
+
+  - id: refactor-date-formatter
+    research_artifact: |
+      must-do:
+        - src/utils/format.ts の formatDate を YYYY-MM-DD 固定にする
+        - 既存呼び出し箇所の引数を新シグネチャに合わせる
+        - tests/utils/format.test.ts に境界ケース (うるう年 / 月またぎ) を追加
+
+  - id: add-feature-flag
+    research_artifact: |
+      must-do:
+        - src/config/flags.ts に FEATURE_NEW_DASHBOARD を追加
+        - env var NEW_DASHBOARD=1 で有効化
+        - src/pages/dashboard.tsx 内の分岐を flag 経由に切り替え
+        - tests/pages/dashboard.test.tsx に flag on/off の 2 ケースを追加
+
+conditions:
+  - id: baseline
+    intervention: none
+
+  - id: refinement
+    intervention: plan-refinement
+    # intervention_args:
+    #   max_expand_ratio: 1.5   # plan-refinement skill 側の過剰詳細化ガード
+
+executor:
+  agent: general-purpose
+  runs_per_plan: 3
+  allow_tools:
+    - Read
+    - Grep
+    - Glob
+    - Bash
+    - Edit
+    - Write
+
+mode: full
+
+report:
+  output_path: ./planner-eval-plan-refinement-ablation.md
+  bootstrap_iterations: 1000
