@@ -36,3 +36,7 @@ npx degit dameleon/skills/<skill-name>
 ```
 
 これらは [Agent Skills](https://agentskills.io) のオープン形式に従うため、APM なしでも仕様互換のエージェント（Claude Code, Codex, opencode, Gemini CLI, Cursor …）でそのまま使える。
+
+## License
+
+[MIT](LICENSE)
