@@ -2,7 +2,26 @@
 
 [agentskills.io](https://agentskills.io/specification) のオープン仕様に準拠した、[@dameleon](https://github.com/dameleon) の agent skills 集。Claude Code / Codex / Gemini CLI / Cursor など、仕様互換のエージェントから利用できる。
 
-スキルは順次追加し、追加され次第この README に一覧を載せる。
+## Skills
+
+| スキル | 概要 |
+|---|---|
+| [`agent-flow`](agent-flow/) | ローカルで完結する軽量マルチエージェント実装フロー（設計 → 実装 → テスト → PR → レビュー → 修正）。 |
+| [`codex-review`](codex-review/) | codex CLI を使ったコード / プランのレビューと、指摘に基づく修正。 |
+| [`completion-check`](completion-check/) | 受入条件の充足を、自己申告を読まずコードから独立検証する。 |
+| [`copilot-review`](copilot-review/) | GitHub Copilot CLI を使ったコード / プランのレビューと修正。 |
+| [`cross-review`](cross-review/) | 外部 LLM CLI（Codex / Gemini）による多観点レビューと、重大度ルールに基づく自動修正。 |
+| [`cursor-delegate`](cursor-delegate/) | 小さく明確なタスクを Cursor agent CLI へ委譲し、結果を独立に受入検証する。 |
+| [`empirical-prompt-tuning`](empirical-prompt-tuning/) | スキルやプロンプトを bias-free executor + 両面評価で反復改善する方法論。 |
+| [`incremental-commit`](incremental-commit/) | 変更を論理単位・物理単位に分割してコミットする。 |
+| [`jj-commit`](jj-commit/) | Jujutsu (jj) でのコミット / プッシュを扱う。 |
+| [`memory-gc`](memory-gc/) | 全プロジェクトの auto-memory を棚卸し・検証し、承認後に GC する。 |
+| [`plan-refinement`](plan-refinement/) | 標準 planner のプランを 5 軸で機械的に精緻化する。 |
+| [`plan-review`](plan-review/) | 外部 LLM CLI で実装プランをレビューし改善する。 |
+| [`planner-eval`](planner-eval/) | plan 段に挟む介入の効果を ablation で empirical に測る。 |
+| [`pr-fix`](pr-fix/) | GitHub PR の未解決レビューコメントを worktree 上で修正する。 |
+| [`sentry-cli`](sentry-cli/) | Sentry CLI をコマンドラインから操作するためのガイド。 |
+| [`test-design`](test-design/) | 結合 / 外部結合テストのケースを設計し、独立レビューで検証する。 |
 
 ## Install
 
@@ -36,6 +55,10 @@ npx degit dameleon/skills/<skill-name>
 ```
 
 これらは [Agent Skills](https://agentskills.io) のオープン形式に従うため、APM なしでも仕様互換のエージェント（Claude Code, Codex, opencode, Gemini CLI, Cursor …）でそのまま使える。
+
+## Agents
+
+[`agents/`](agents/) に、スキルから参照される subagent 定義を置いている（Claude Code / Cursor 向け）。自動インストールされない手動導入用のサンプルで、導入手順は [`agents/README.md`](agents/README.md) を参照。
 
 ## License
 
