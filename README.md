@@ -12,7 +12,6 @@
 | [`copilot-review`](copilot-review/) | GitHub Copilot CLI を使ったコード / プランのレビューと修正。 |
 | [`cross-review`](cross-review/) | 外部 LLM CLI（Codex / Gemini）による多観点レビューと、重大度ルールに基づく自動修正。 |
 | [`cursor-delegate`](cursor-delegate/) | 小さく明確なタスクを Cursor agent CLI へ委譲し、結果を独立に受入検証する。 |
-| [`empirical-prompt-tuning`](empirical-prompt-tuning/) | スキルやプロンプトを bias-free executor + 両面評価で反復改善する方法論。 |
 | [`incremental-commit`](incremental-commit/) | 変更を論理単位・物理単位に分割してコミットする。 |
 | [`jj-commit`](jj-commit/) | Jujutsu (jj) でのコミット / プッシュを扱う。 |
 | [`memory-gc`](memory-gc/) | 全プロジェクトの auto-memory を棚卸し・検証し、承認後に GC する。 |

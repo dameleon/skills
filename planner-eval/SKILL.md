@@ -347,7 +347,6 @@ mode: full
 | skill | 関係 |
 |---|---|
 | `plan-refinement` (#11) | **本 skill の初期 user story。ワンセット。** 本 skill が「介入の効き目を測る装置」、`plan-refinement` が「測られる側の最初の介入」 |
-| `empirical-prompt-tuning` | 上位思想 (両面評価のメタスキル)。本 skill はその開発ワークフロー特化版 (プラン段に限定し、ablation で介入を切り分ける) |
 | `completion-check` (#9) | 動的指標の一部として将来統合できる候補。現状は「逸脱率」「golden 一致率」が近い役割を担うが、完了条件ベースの判定ロジックは completion-check の方が成熟している |
 | `cross-review` / `codex-review` / `copilot-review` | 別軸。コード品質レビュー。本 skill は「指示としてのプランの効き目」が対象 |
 | `plan-review` | 別軸。プランの妥当性を質的にレビュー。本 skill は実装段への効果を empirical に測る |

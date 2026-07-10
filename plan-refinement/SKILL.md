@@ -222,7 +222,6 @@ ExitPlanMode が呼ばれた直後に、必ず `/plan-refine` を実行してプ
 | skill | 関係 |
 |---|---|
 | `planner-eval` (#10) | **本 skill の効果検証装置。ワンセット。** 本 skill が出した `Changes from original` を機械的に拾い、ablation で再現性 / 仮定数を測る |
-| `empirical-prompt-tuning` | 上位思想 (両面評価のメタスキル)。本 skill は「プランを後段で精緻化する」という具体ケース |
 | `completion-check` (#9) | 別軸。実装 vs 受入条件の照合。本 skill はプラン段、completion-check は実装後 |
 | `plan-review` | 別軸。プランの妥当性を質的にレビュー。本 skill は機械的書き直し |
 | `code-review` / `cross-review` | 別軸。コード品質。本 skill はプラン段なのでスコープ外 |
