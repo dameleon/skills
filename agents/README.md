@@ -72,38 +72,11 @@ and logged in (`cursor-agent status`).
 
 ---
 
-# Advisor subagent: `advisor`
+# Retired: `advisor` subagent
 
-A **second opinion** on the main session's work — stands in for Claude Code's built-in
-`advisor` tool, which routes to a model per-install and can be unavailable. This one pins
-**`model: fable`** (Fable 5) explicitly, so it neither breaks nor silently downgrades. Scoped to
-`Read, Grep, Glob, Bash` — no Edit/Write, and the prompt holds `Bash` to inspection-only, so it
-critiques and never implements. (This is "no file edits + a prompt convention," not a mechanical
-read-only sandbox: `Bash` could still mutate, so don't grant it `bypassPermissions`.)
-
-**What it does not get:** the main conversation. A subagent dispatched via the Agent tool receives
-only the prompt the caller hands it, not the transcript (that auto-inheritance is exclusive to
-`subagent_type: fork`, which is locked to the caller's model and so can't run Fable). So the caller
-passes a context bundle — the task, the current approach, the files/diff to review — and the advisor
-reads the rest itself (`git diff`, `git log`, `rg`, file reads). The system prompt bakes in
-"challenge by default, don't rubber-stamp; cite `file:line`; read-only."
-
-**When it fires:** the `description` mirrors the built-in advisor's cadence — before committing to an
-approach, before declaring a task done, and when stuck — so Claude auto-delegates at those moments.
-You can also invoke it explicitly with `@advisor` or by naming it in a prompt.
-
-## Install (symlink — this repo is the source of truth)
-
-```bash
-# Claude Code (personal); edits to the repo file stay live via the symlink.
-# Use an absolute target so the link never dangles regardless of cwd:
-ln -s "$(git rev-parse --show-toplevel)/agents/claude-code/advisor.md" ~/.claude/agents/advisor.md
-```
-
-Claude-Code-only (no `cursor/` variant): the point is pinning Fable 5, which is a Claude model alias.
-
-## Model / effort (adjust freely)
-
-`model: fable` is the deliberate choice here. To make the review deeper, add `effort: high` (or
-`max`) to the frontmatter — available effort tiers depend on the model, so drop it back to plain
-`model: fable` if a tier is rejected.
+A Fable-pinned `advisor` subagent used to live here, standing in for Claude Code's built-in
+`advisor` tool back when that tool routed to a per-install model and could fail with
+"Advisor unavailable." **It is removed.** The built-in advisor now ships as a native plugin and its
+model is pinned in `~/.claude/settings.json` (`"advisorModel": "fable"`), so the subagent bought
+nothing and cost context fidelity: a subagent sees only the bundle the caller hands it, while the
+built-in tool sees the whole transcript. Delete any leftover `~/.claude/agents/advisor.md` symlink.
