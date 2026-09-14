@@ -64,8 +64,9 @@ Read the matching reference file before acting — each phase has details that d
 | Concern | Cursor | Claude Code |
 |---|---|---|
 | Invoke this skill | `/agent-flow` or ask to run agent-flow | `/agent-flow` |
-| Move session into worktree | `move_agent_to_root` MCP with the worktree path | `EnterWorktree(path=<worktree>)` |
-| Leave worktree session | `move_agent_to_root` back to the main repo path | `ExitWorktree(action="keep")` |
+| Create the worktree and move in | create per "Worktree resolution" below, then `move_agent_to_root` with the worktree path | `EnterWorktree(name=<branch>)` — the harness creates it (see below) |
+| Re-enter an existing worktree | `move_agent_to_root` with the worktree path | `EnterWorktree(path=<worktree>)` |
+| Leave worktree session | `move_agent_to_root` back to the main repo path | `ExitWorktree(action="keep")` to leave it in place; at `done`, remove per `references/done.md` Step 3 |
 | Dispatch `@role` tasks | `Task` tool (`generalPurpose`, `explore`, `shell`, …) | subagent / Task — use a **valid** type: `general-purpose` (code roles), `Plan` (design), `Explore` (search); prefer `senior`/`generic-coder` if defined. Never use Cursor names or `coder` (run.md). |
 | Plan-style design | `SwitchMode` → plan, or `Task` | `Plan` agent |
 | Run engine (gateless) | `subagent` only | `subagent` / `/goal` / `/ralph-loop` (ralph-wiggum) |
@@ -94,13 +95,17 @@ grep -qxF '.agent-flow/' "$EXCLUDE" || printf '.agent-flow/\n' >> "$EXCLUDE"
 
 ## Worktree resolution (precedence)
 
-The implementation work is isolated in its own worktree. Pick the creation mechanism in this order — a project that wraps `git worktree` (to copy `.env`, enforce a tool, etc.) will leave the worktree unbootable if you bypass it:
+The implementation work is isolated in its own worktree. A project that wraps `git worktree` (to copy `.env`, enforce a tool, etc.) will leave the worktree unbootable if you bypass it.
+
+The **slug is a bare kebab name** with no `feat/` / `fix/` prefix — the prefix is added only when forming the branch. Derive the branch as `<type>/<slug>`, where `<type>` is `fix` for bug work and `feat` for a feature.
+
+**Claude Code** — let the harness create it: `EnterWorktree(name=<branch>)`. Creation runs through the environment's `WorktreeCreate` hook when one is configured (a user- or project-level hook wrapping `git wt`, for example), which is where path, base branch and file copying are decided — so do not run `git worktree add` or `git wt` yourself. To start from a base other than the repo's default branch, create the branch first (`git branch --no-track <branch> <base>`) and then call `EnterWorktree(name=<branch>)`; a git-wt-style hook checks out an existing branch as-is (verify with `git branch --show-current` after entering). Without a hook the harness uses `.claude/worktrees/<name>` on branch `worktree-<name>`; accept that rather than fighting it. Record the path the tool reports — later steps and every subagent dispatch need it.
+
+**Cursor** (no harness hook) — pick the creation mechanism in this order:
 
 1. **Project rule** — `.cursor/rules/*worktree*`, `.claude/rules/*worktree*`, `CLAUDE.md` / `AGENTS.md` worktree sections, or a repo tool like `git wt`.
 2. **User rule** — a global convention (e.g. worktrees under `.wt/<flat-name>`, base branch from the repo's default).
 3. **Fallback** — raw `git worktree add -b <branch> <path> <base>`.
-
-The **slug is a bare kebab name** with no `feat/` / `fix/` prefix — the prefix is added only when forming the branch. Derive the branch as `<type>/<slug>`, where `<type>` is `fix` for bug work and `feat` for a feature.
 
 Default path when no rule applies: `<repo>/.wt/<slug>` (flat name, no slashes); branch `<type>/<slug>` from `origin/<default-branch>`.
 

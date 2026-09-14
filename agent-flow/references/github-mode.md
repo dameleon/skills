@@ -105,7 +105,7 @@ After the generic Steps 1–2 of `start.md` (design + execution shape), and Step
 Identical loop to `run.md`, with the primitives swapped:
 
 - **Load**: fetch the body (`gh issue view`), parse it exactly as you'd parse TASKS.md — `phase:` from the meta block is your position, `engine:` selects the driver.
-- **Locate the flow + ensure a worktree before code work**: find the flow via the `.agent-flow/issue` pointer if a worktree already exists, else the `agent-flow`-labelled tracking issue (or the URL the user gives). `start` may have **deferred the worktree** — if none exists, create it from the meta `branch:` when the first **code-producing** task (`@implement` / `@fix` / `@refactor`) is due: per the resolved mechanism (`git worktree add .wt/<slug> <branch>`), enter it, then drop the `.agent-flow/issue` pointer. A `@design` phase only edits the issue body, so it needs no worktree — the worktree can wait until implementation.
+- **Locate the flow + ensure a worktree before code work**: find the flow via the `.agent-flow/issue` pointer if a worktree already exists, else the `agent-flow`-labelled tracking issue (or the URL the user gives). `start` may have **deferred the worktree** — if none exists, create it from the meta `branch:` when the first **code-producing** task (`@implement` / `@fix` / `@refactor`) is due: Claude Code: `EnterWorktree(name=<branch>)`; Cursor: per the resolved mechanism (`git worktree add .wt/<slug> <branch>` or the project's tool), then `move_agent_to_root` — then drop the `.agent-flow/issue` pointer. A `@design` phase only edits the issue body, so it needs no worktree — the worktree can wait until implementation.
 - **Dispatch** subagents per `@role` exactly as in local mode; the dispatch prompt still carries the absolute worktree path and the task's `goal`/`done`, and says **work in the worktree, commit with `/incremental-commit`, and report back — do not touch the issue**. The orchestrator (you) then re-fetches the body, ticks `[x]`, and writes it back.
 - **Gates**: `review` / `approve` / `none` behave the same; additionally **post a comment** recording the checkpoint (and, for `approve`, that you're waiting). For `approve`, the human still responds in-session — reactions/labels as async approval signals are a possible future enhancement, not v1.
 - **`@pr`**: open the draft PR as usual and **include `Closes #<issue>` in the PR body** so the tracking issue auto-closes on merge; write the PR number into the meta block `pr:` and post the PR link as a comment.
@@ -124,10 +124,10 @@ Same guard as `done.md` (no remaining `- [ ]` — read from the **issue body**; 
 
 1. Ensure the PR body contains `Closes #<issue>` (so the issue auto-closes on merge). Add it if missing.
 2. Post a **final summary comment** on the tracking issue (PR link + what shipped).
-3. Remove the worktree (`ExitWorktree(action="keep")` → `git worktree remove`). This deletes the `.agent-flow/issue` pointer with it — harmless, the issue is self-describing.
+3. Remove the worktree as in `done.md` Step 3. This deletes the `.agent-flow/issue` pointer with it — harmless, the issue is self-describing.
 4. **Leave the issue open. Never delete it** (the API can't anyway — issues only close). It auto-closes when the user merges the PR; merging stays the user's manual step.
 
-Because the issue persists, an `@address-review` round after `done` is easy to resume: re-attach a worktree on the PR branch (`git worktree add .wt/<slug> <branch>`), re-drop the `.agent-flow/issue` pointer, and run.
+Because the issue persists, an `@address-review` round after `done` is easy to resume: re-attach a worktree on the PR branch (as in `done.md` Step 2's re-attach note), re-drop the `.agent-flow/issue` pointer, and run.
 
 ## GitHub-specific constraints (catalog)
 

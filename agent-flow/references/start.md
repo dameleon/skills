@@ -41,16 +41,16 @@ The pick lands in the TASKS.md `engine:` header and PLAN.md 制御フロー (Ste
 ## Step 3 — Derive the slug and resolve the worktree
 
 - `slug`: a short kebab-case name for the flow, with no `feat/` / `fix/` prefix (e.g. `add-foo-endpoint`). Derive it from the work's subject — the ticket title in Mode B, the design's subject noun in Mode A.
-- Resolve the worktree mechanism by the precedence in SKILL.md (project rule → user rule → raw `git worktree`).
-- Compute the path and branch (default: `.wt/<slug>` under the repo's convention; branch `feat/<slug>` from `origin/<default-branch>`).
-- **Refuse to clobber existing state.** If the path exists or the worktree is already registered, stop and tell the user how to clean it up (`git worktree remove <path>`, or `rm -rf` a stale directory) rather than reusing it silently.
+- Resolve the worktree mechanism per SKILL.md "Worktree resolution": Claude Code hands creation to the harness (`EnterWorktree(name=<branch>)`); Cursor follows the precedence (project rule → user rule → raw `git worktree`).
+- Compute the branch (`<type>/<slug>` from `origin/<default-branch>`). On Cursor also compute the path (default: `.wt/<slug>` under the repo's convention); on Claude Code the path is whatever the harness reports.
+- **Refuse to clobber existing state.** If the branch already exists, or a worktree is already registered for it (`git worktree list --porcelain`), stop and tell the user to remove or reuse the existing worktree/branch rather than reusing it silently.
 
 **In github mode, defer this.** Resolve the slug and the worktree *mechanism* (you will need them at `run`), but **do not create or enter the worktree** unless the user explicitly asked to work locally now — github mode's blackboard is the tracking issue, which needs no checkout, and the machine that implements may differ from this one. `run` creates the worktree when the first code-producing task begins (`references/github-mode.md`).
 
 In **local mode** (and github mode only when explicitly asked), create the worktree, then switch the session into it so subsequent file and Bash operations target it:
 
-- **Cursor**: call `move_agent_to_root` with the worktree's absolute path.
-- **Claude Code**: `EnterWorktree(path=<worktree>)`.
+- **Cursor**: create it per the precedence, then call `move_agent_to_root` with the worktree's absolute path.
+- **Claude Code**: `EnterWorktree(name=<branch>)` creates it and moves the session in one step. Take the worktree path from the tool's result.
 
 ## Step 4 — Make the blackboard ignorable
 
