@@ -231,7 +231,7 @@ The verifier scope is narrow on purpose — overlap with neighboring skills woul
 |---|---|---|
 | `cross-review` / `code-review` / `copilot-review` | General code quality, architecture, security, performance | Style critique, refactor suggestions, security audits — even if the code is ugly, if it satisfies the criterion the verdict is OK |
 | `plan-review` | Quality of a plan document before implementation | Plan-vs-plan critique; `completion-check` runs *after* implementation |
-| `pr-fix` / `fix-issue` | Apply fixes for review feedback or issues | `completion-check` only reports gaps + proposed fixes; it does not edit files |
+| `fix-issue` | Apply fixes for review feedback or issues | `completion-check` only reports gaps + proposed fixes; it does not edit files |
 
 If the user asks for "review", default to `cross-review` / `code-review`. Use `completion-check` only when the question is specifically about acceptance fit ("did we actually complete the task?").
 
