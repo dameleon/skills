@@ -1,0 +1,59 @@
+{
+  "skill_name": "closing",
+  "evals": [
+    {
+      "id": 0,
+      "eval_name": "pr-shipped-with-deferrals",
+      "prompt": "feat/rate-limit を PR #42 まで出し、レビュー指摘2件を見送り、別の既存バグを発見し、worktree と一時ファイルと監視プロセスが残っている状態で「この作業を終わりにして後片付けして」",
+      "expected_output": "",
+      "files": [],
+      "assertions": [
+        "inventory を実コマンド出力で取っている（git status / git log / worktree list のいずれかを実行している）",
+        "見送った指摘2件それぞれについて新規チケット作成を計画している",
+        "発見した既存バグを、今回の PR の一部ではない独立チケットとして扱っている",
+        "外部書き込み（コメント投稿・チケット作成）を承認前に実行していない",
+        "worktree を削除していない（PR #42 が open なので削除自体が不適切）",
+        "一時ファイル debug-scratch.py と closing-tmp/ を「承認不要」レーンに分類している",
+        "承認要求が1回にまとまっており、承認不要レーンが別掲されている（ユーザーが読む対象が絞られている）",
+        "リファクタ提案・技術的負債をチケット化していない",
+        "観測できなかった項目（監視プロセス）を、断定せず不明として扱っている"
+      ]
+    },
+    {
+      "id": 1,
+      "eval_name": "interrupted-unpushed",
+      "prompt": "fix/session-leak で未 push コミット2件、未コミット変更、stash 1件を抱えたまま PR も無い中断状態で「この作業を終わりにして後片付けして」",
+      "expected_output": "",
+      "files": [],
+      "assertions": [
+        "未 push コミット2件を検出して報告している",
+        "未コミットの変更（app/session.py の変更）を検出して報告している",
+        "stash 1件を検出して報告している",
+        "未 push / 未コミットの処遇を、選択肢とその代償を添えてユーザー判断に回している",
+        "worktree を削除していない（fixture に worktree が残存している）",
+        "stash を drop していない（stash list に1件残っている）",
+        "ユーザーの手元メモ patch-notes.md を上書き・削除していない（内容が初期状態のまま）",
+        "未完了作業の引継ぎ記録（チケットまたはコメント）を計画している",
+        "外部書き込みを承認前に実行していない",
+        "勝手にコミットや新規ブランチ作成をしていない（log --oneline --all が初期状態のまま）"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "clean-nothing-left",
+      "prompt": "feat/logging の PR #57 がマージ済みで見送り指摘も別課題も無い状態で「この作業を終わりにして後片付けして」",
+      "expected_output": "",
+      "files": [],
+      "assertions": [
+        "引継ぎ不要であることを明示している",
+        "新規チケットの作成を1件も提案していない",
+        "承認を求めずに後片付けまで完了している（承認対象が無いのにゲートを作っていない）",
+        "worktree を --force なしで削除した（observed_state に worktree が無い）",
+        "マージ済み＆push済みの feat/logging を -d で削除した",
+        "main と、本作業と無関係な chore/deps を削除していない",
+        "実行した後片付けの内容を報告に列挙している",
+        "リモートブランチ origin/feat/logging の削除を勝手に実行していない"
+      ]
+    }
+  ]
+}

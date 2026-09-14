@@ -7,6 +7,7 @@
 | スキル | 概要 |
 |---|---|
 | [`agent-flow`](agent-flow/) | ローカルで完結する軽量マルチエージェント実装フロー（設計 → 実装 → テスト → PR → レビュー → 修正）。 |
+| [`closing`](closing/) | 作業の締め。状態を棚卸しし、引継ぎを記録し、安全が実出力で示せる片付けだけを承認なしで行う。 |
 | [`codex-review`](codex-review/) | codex CLI を使ったコード / プランのレビューと、指摘に基づく修正。 |
 | [`completion-check`](completion-check/) | 受入条件の充足を、自己申告を読まずコードから独立検証する。 |
 | [`copilot-review`](copilot-review/) | GitHub Copilot CLI を使ったコード / プランのレビューと修正。 |
@@ -18,7 +19,6 @@
 | [`plan-refinement`](plan-refinement/) | 標準 planner のプランを 5 軸で機械的に精緻化する。 |
 | [`plan-review`](plan-review/) | 外部 LLM CLI で実装プランをレビューし改善する。 |
 | [`planner-eval`](planner-eval/) | plan 段に挟む介入の効果を ablation で empirical に測る。 |
-| [`pr-fix`](pr-fix/) | GitHub PR の未解決レビューコメントを worktree 上で修正する。 |
 | [`sentry-cli`](sentry-cli/) | Sentry CLI をコマンドラインから操作するためのガイド。 |
 | [`test-design`](test-design/) | 結合 / 外部結合テストのケースを設計し、独立レビューで検証する。 |
 
