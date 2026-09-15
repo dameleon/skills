@@ -129,7 +129,7 @@ Phase 0 で確定した値を **穴埋めして literal で** prompt に渡す(�
 - 「`{skill-dir}/viewpoints.md` の観点で `{target}` を分析し(scope=`{scope}`, style=`{style}`)、`{skill-dir}/output-formats.md` の正準スキーマと写経元 `{skill-dir}/{template}` に従い `{ext}` 形式でケースを生成。Test Basis は `{test-basis}` を引く。実施者非依存・観測可能な期待結果。未確認は正直に保留。成果を `{out-dir}/PLAN.md` と `{out-dir}/CASES{ext}` に書く」
 
 **case-reviewer(Phase 3)** 穴埋め骨子(独立性を強調):
-- 「あなたは批判的レビュー担当。設計者の意図を推測せず、`{out-dir}/CASES{ext}` と `{out-dir}/PLAN.md`・Test Basis だけを根拠に、`{skill-dir}/verification.md` のルーブリックで粗探しせよ。観点漏れ・トレーサビリティ欠落・実施者依存・期待結果の曖昧さ・正常系偏りを重点に。各 finding に ケースID / 違反項目 / 重大度(blocker|major|minor) / 分類(修正可|要仕様判断) / 具体修正案 を付け、`{out-dir}/REVIEW.md` に出力。問題が無ければ空で返す」
+- 「あなたは批判的レビュー担当。設計者の意図を推測せず、`{out-dir}/CASES{ext}` と `{out-dir}/PLAN.md`・Test Basis だけを根拠に、`{skill-dir}/verification.md` のルーブリックで粗探しせよ。観点漏れ・トレーサビリティ欠落・実施者依存・期待結果の曖昧さ・正常系偏り・オラクルの独立性(期待値が実装由来でないか)・ケースの検出力(選んだ値で差が出るか)を重点に。各 finding に ケースID / 違反項目 / 重大度(blocker|major|minor) / 分類(修正可|要仕様判断) / 具体修正案 を付け、`{out-dir}/REVIEW.md` に出力。問題が無ければ空で返す」
 
 レビューは Phase 1/2 をインライン生成した場合でも、必ず生成とは別の fork した subagent 呼び出しにする(自己レビュー禁止)。
 
@@ -139,7 +139,7 @@ Phase 0 で確定した値を **穴埋めして literal で** prompt に渡す(�
 
 | 重大度 | 例 | 既定アクション |
 |---|---|---|
-| blocker(修正可) | ケースが誤り/実行不能/仕様矛盾/追跡不能 | 自動修正。2 周後も残れば完了せず停止・冒頭で明示報告 |
+| blocker(修正可) | ケースが誤り/実行不能/仕様矛盾/追跡不能、期待値のオラクルが SUT 自身 | 自動修正。2 周後も残れば完了せず停止・冒頭で明示報告 |
 | major(修正可) | 観点漏れ、期待結果が曖昧、前提条件欠落、正常系偏り、実施者依存 | 自動修正 |
 | minor(修正可) | 表現の重複・冗長・体裁 | 安価なら適用、他は備考 |
 | 要仕様判断 | 真の仕様曖昧・一次情報欠落 | 捏造せず保留 + Open Question 化。gate により確認 |
