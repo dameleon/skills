@@ -1,0 +1,19 @@
+{
+  "number": 45,
+  "title": "feat: 通知設定画面の UI と保存 API",
+  "state": "OPEN",
+  "isDraft": false,
+  "url": "https://github.com/acme/notify/pull/45",
+  "headRefName": "feat/notification-settings",
+  "baseRefName": "main",
+  "author": {
+    "login": "tester"
+  },
+  "body": "## 概要\n通知設定画面の UI と保存 API。\n\nCloses #44\n",
+  "reviewDecision": "REVIEW_REQUIRED",
+  "closingIssuesReferences": [
+    {
+      "number": 44
+    }
+  ]
+}

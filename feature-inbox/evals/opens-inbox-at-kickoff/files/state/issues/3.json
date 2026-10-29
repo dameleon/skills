@@ -1,0 +1,10 @@
+{
+  "number": 3,
+  "title": "通知メールの件名が文字化けする",
+  "labels": [
+    "bug"
+  ],
+  "state": "OPEN",
+  "author": "kei",
+  "createdAt": "2026-10-01T09:00:00Z"
+}

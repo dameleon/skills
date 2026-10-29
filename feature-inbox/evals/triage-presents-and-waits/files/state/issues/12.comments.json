@@ -1,0 +1,72 @@
+[
+  {
+    "id": 3000001,
+    "user": "tester",
+    "created_at": "2026-10-21T10:00:00Z",
+    "html_url": "https://github.com/acme/notify/issues/12#issuecomment-3000001",
+    "body": "2026-10-21 設計セッションより\n\n### [未決] Q-1: 通知チャネルの v1 範囲（メールのみか Slack も含めるか）\n- 背景: Slack 連携は認証基盤の OAuth 対応待ち。v1 に含めるとリリースが 11 月以降になる\n- 選択肢: A. メールのみ / B. Slack も含める（11 月リリース）\n- 推奨: A\n- 判断者: 人間（リリース計画）\n- 発生元: 設計セッション\n\n### [未決] Q-2: 既読を自動化するか（画面表示で既読にするか手動のみか）\n- 背景: 現行は手動既読のみ\n- 選択肢: A. 手動のみ / B. 表示で自動既読\n- 推奨: A\n- 判断者: 人間（UX 方針）\n\n### [課題] I-1: 設定保存時に 500（頻度が空のとき）\n- 内容: `NotificationSetting#frequency` が nil のとき保存で例外\n- 該当箇所: app/models/notification_setting.rb:18\n\n### [報告] 2026-10-21\n- 完了: 画面構成とデータモデルの設計（docs/notification-settings.md）\n- 進行中: なし\n- 次: 設定画面 UI と保存 API の実装\n"
+  },
+  {
+    "id": 3000002,
+    "user": "tester",
+    "created_at": "2026-10-22T10:00:00Z",
+    "html_url": "https://github.com/acme/notify/issues/12#issuecomment-3000002",
+    "body": "PR #45 (feat/notification-settings) より\n\n### [報告] 2026-10-22\n- 完了: 設定画面 UI と保存 API（PR #45、レビュー中）\n- 次: レビュー対応\n\n### [引継ぎ] H-1: ステージングの SMTP はダミー\n- `MAIL_DRIVER=log` のまま。本番相当のメール確認は `MAIL_DRIVER=smtp` に切り替えてから\n"
+  },
+  {
+    "id": 3000003,
+    "user": "kei",
+    "created_at": "2026-10-22T10:00:00Z",
+    "html_url": "https://github.com/acme/notify/issues/12#issuecomment-3000003",
+    "body": "I-1 は手元で再現した。優先度高めでお願いします。\n"
+  },
+  {
+    "id": 3000004,
+    "user": "tester",
+    "created_at": "2026-10-23T10:00:00Z",
+    "html_url": "https://github.com/acme/notify/issues/12#issuecomment-3000004",
+    "body": "PR #45 レビュー対応より\n\n### [決定] → Q-1: 通知チャネルは v1 ではメールのみ\n- 理由: Slack 連携は認証基盤の OAuth 対応待ち（11 月）。`@kei` の指示\n- 決定者: `@kei`\n\n### [未決] Q-3: 既読フラグを通知単位にするかスレッド単位にするか\n- 背景: 現行 UI はスレッド単位。API は通知単位で返している\n- 選択肢: A. 通知単位（UI 改修要） / B. スレッド単位（集約関数を 1 つ追加）\n- 推奨: B\n- 判断者: 人間（UX 方針）\n- 発生元: PR #45 レビュー指摘\n\n### [課題] I-2: 通知一覧の N+1 クエリ\n- 内容: `NotificationList#index` が送信者ごとに user を引いている\n- 該当箇所: app/controllers/notification_list.rb:34\n- 今回の変更との関係: 無関係・既存\n"
+  },
+  {
+    "id": 3000005,
+    "user": "kei",
+    "created_at": "2026-10-23T10:00:00Z",
+    "html_url": "https://github.com/acme/notify/issues/12#issuecomment-3000005",
+    "body": "Q-2 は手動既読でいいです。自動既読は要望が来てから考えましょう。\n"
+  },
+  {
+    "id": 3000006,
+    "user": "tester",
+    "created_at": "2026-10-24T10:00:00Z",
+    "html_url": "https://github.com/acme/notify/issues/12#issuecomment-3000006",
+    "body": "PR #47 より\n\n### [報告] 2026-10-24\n- 完了: I-1（頻度が空のとき 500）を PR #47 で修正、マージ済み\n- 進行中: PR #45 レビュー対応\n- 次: Q-3 の決定待ち。決まったら一覧の集約を実装\n\n### [未決] Q-4: 配信失敗時のリトライ間隔\n- 背景: 既存ジョブは固定 1 分。指数バックオフにするか\n- 選択肢: 固定 1 分 / 指数バックオフ（1, 2, 4 分）\n- 推奨: 固定 1 分（既存に合わせる）\n- 判断者: エージェント可\n"
+  },
+  {
+    "id": 3000007,
+    "user": "kei",
+    "created_at": "2026-10-24T10:00:00Z",
+    "html_url": "https://github.com/acme/notify/issues/12#issuecomment-3000007",
+    "body": "Q-3 はデザインチームに確認中です。来週には返事できると思います。\n"
+  },
+  {
+    "id": 3000008,
+    "user": "tester",
+    "created_at": "2026-10-25T10:00:00Z",
+    "html_url": "https://github.com/acme/notify/issues/12#issuecomment-3000008",
+    "body": "### [報告] 2026-10-25\n- 完了: PR #45 のレビュー指摘 3 件に対応、再レビュー依頼済み\n- 次: Q-3 待ち\n"
+  },
+  {
+    "id": 3000009,
+    "user": "tanaka",
+    "created_at": "2026-10-25T10:00:00Z",
+    "html_url": "https://github.com/acme/notify/issues/12#issuecomment-3000009",
+    "body": "H-1 の件、ステージングの SMTP はまだ log のままです。切り替えるときは声かけてください。\n"
+  },
+  {
+    "id": 3000010,
+    "user": "tester",
+    "created_at": "2026-10-26T10:00:00Z",
+    "html_url": "https://github.com/acme/notify/issues/12#issuecomment-3000010",
+    "body": "PR #45 の再レビュー対応より\n\n### [決定] Q-5: 頻度の選択肢は 即時 / 毎日 / 毎週 の 3 つ\n- 理由: 既存の digest ジョブが日次・週次しか持たず、それ以外は新規実装になるため\n- 決定者: エージェント（本セッション。変える場合は言ってください）\n"
+  }
+]

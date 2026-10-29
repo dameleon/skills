@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""Fake `gh` for feature-inbox evals.
+
+Logs every invocation to <state>/gh-calls.log and emulates the subset of `gh` the
+skill uses against a local state directory (issues, comments, labels). State lives in
+$FAKE_GH_STATE or <this script's dir>/../state.
+"""
+import json, os, re, sys, shutil, subprocess, datetime
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+STATE = os.environ.get("FAKE_GH_STATE") or os.path.join(os.path.dirname(HERE), "state")
+ISSUES = os.path.join(STATE, "issues")
+WRITES = os.path.join(STATE, "writes")
+REPO = {"nameWithOwner": "acme/notify", "hasIssuesEnabled": True,
+        "url": "https://github.com/acme/notify", "defaultBranchRef": {"name": "main"}}
+BASE = REPO["url"]
+os.makedirs(ISSUES, exist_ok=True); os.makedirs(WRITES, exist_ok=True)
+argv = sys.argv[1:]
+now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+def log(line):
+    with open(os.path.join(STATE, "gh-calls.log"), "a") as f:
+        f.write(line + "\n")
+
+log("gh " + " ".join(repr(a) if (" " in a or "\n" in a) else a for a in argv))
+
+def die(msg, code=1):
+    sys.stderr.write(f"fake gh: {msg}\n"); sys.exit(code)
+
+def opt(flags, default=None, multi=False):
+    """Return value(s) of --flag / -f [value] from argv (supports --flag=value)."""
+    vals = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        hit = False
+        for fl in flags:
+            if a == fl:
+                if i + 1 < len(argv): vals.append(argv[i + 1]); i += 1
+                else: vals.append("")
+                hit = True; break
+            if a.startswith(fl + "="):
+                vals.append(a[len(fl) + 1:]); hit = True; break
+        i += 1
+    if multi: return vals
+    return vals[-1] if vals else default
+
+def has(flag): return any(a == flag or a.startswith(flag + "=") for a in argv)
+
+def positionals():
+    """Non-flag args after the first two tokens (command, subcommand)."""
+    out, skip = [], False
+    for a in argv[2:]:
+        if skip: skip = False; continue
+        if a.startswith("-"):
+            if "=" not in a and a not in ("--comments", "--web", "--paginate", "--slurp"):
+                skip = True
+            continue
+        out.append(a)
+    return out
+
+def load_issue(n):
+    meta_p = os.path.join(ISSUES, f"{n}.json")
+    if not os.path.exists(meta_p): die(f"GraphQL: Could not resolve to an Issue with the number of {n}.")
+    meta = json.load(open(meta_p))
+    body = open(os.path.join(ISSUES, f"{n}.body.md")).read() if os.path.exists(os.path.join(ISSUES, f"{n}.body.md")) else ""
+    cp = os.path.join(ISSUES, f"{n}.comments.json")
+    comments = json.load(open(cp)) if os.path.exists(cp) else []
+    return meta, body, comments
+
+def save_issue(n, meta=None, body=None, comments=None):
+    if meta is not None: json.dump(meta, open(os.path.join(ISSUES, f"{n}.json"), "w"), ensure_ascii=False, indent=2)
+    if body is not None: open(os.path.join(ISSUES, f"{n}.body.md"), "w").write(body)
+    if comments is not None: json.dump(comments, open(os.path.join(ISSUES, f"{n}.comments.json"), "w"), ensure_ascii=False, indent=2)
+
+def all_issues():
+    out = []
+    for f in sorted(os.listdir(ISSUES)):
+        if re.fullmatch(r"\d+\.json", f):
+            out.append(load_issue(int(f.split(".")[0])))
+    return out
+
+def snapshot(kind, n, content):
+    seq = len([f for f in os.listdir(WRITES)]) + 1
+    p = os.path.join(WRITES, f"{seq:02d}-{kind}-{n}.md")
+    open(p, "w").write(content)
+    return p
+
+def body_from_flags():
+    bf = opt(["--body-file", "-F"])
+    if bf is not None:
+        return sys.stdin.read() if bf == "-" else open(bf).read()
+    b = opt(["--body", "-b"])
+    if b is None: die("must provide --body or --body-file")
+    return b
+
+def emit(obj):
+    jq = opt(["--jq", "-q"])
+    if jq:
+        if shutil.which("jq"):
+            r = subprocess.run(["jq", "-r", jq], input=json.dumps(obj, ensure_ascii=False), text=True, capture_output=True)
+            sys.stdout.write(r.stdout); sys.stderr.write(r.stderr); sys.exit(r.returncode)
+        # minimal fallback for ".field"
+        m = re.fullmatch(r"\.(\w+)", jq.strip())
+        if m and isinstance(obj, dict): print(obj.get(m.group(1), "")); return
+        die("jq not installed and expression too complex for fake gh")
+    print(json.dumps(obj, ensure_ascii=False, indent=2))
+
+def issue_json(meta, body, comments, fields):
+    n = meta["number"]
+    full = {
+        "number": n, "title": meta["title"], "url": f"{BASE}/issues/{n}", "state": meta.get("state", "OPEN"),
+        "body": body, "labels": [{"name": l, "color": "ededed"} for l in meta.get("labels", [])],
+        "author": {"login": meta.get("author", "kei")}, "createdAt": meta.get("createdAt", now), "updatedAt": now,
+        "comments": [{"id": c["id"], "author": {"login": c["user"]}, "body": c["body"], "createdAt": c["created_at"],
+                       "url": c["html_url"], "authorAssociation": "MEMBER", "includesCreatedEdit": False,
+                       "isMinimized": False, "minimizedReason": "", "reactionGroups": []} for c in comments[:100]],
+        "closed": meta.get("state", "OPEN") == "CLOSED", "id": f"I_fake{n}", "parent": meta.get("parent"),
+    }
+    if fields:
+        return {k: full.get(k) for k in fields.split(",")}
+    return full
+
+if not argv: die("usage: gh <command> <subcommand> [flags]")
+cmd = argv[0]; sub = argv[1] if len(argv) > 1 else ""
+
+if cmd == "--version":
+    print("gh version 2.98.0 (fake)"); sys.exit(0)
+
+if cmd == "auth" and sub == "status":
+    print("github.com\n  ✓ Logged in to github.com account tester (keyring)\n  - Token scopes: 'repo'"); sys.exit(0)
+
+if cmd == "repo" and sub == "view":
+    emit({k: REPO[k] for k in opt(["--json"], "nameWithOwner,hasIssuesEnabled,url,defaultBranchRef").split(",") if k in REPO}); sys.exit(0)
+
+if cmd == "label":
+    lp = os.path.join(STATE, "labels.txt")
+    labels = [l.strip() for l in open(lp)] if os.path.exists(lp) else ["bug", "enhancement"]
+    if sub == "list":
+        if has("--json"): emit([{"name": l, "color": "ededed"} for l in labels])
+        else: print("\n".join(labels))
+        sys.exit(0)
+    if sub == "create":
+        name = positionals()[0]
+        if name in labels: die(f"label with name \"{name}\" already exists"); 
+        labels.append(name); open(lp, "w").write("\n".join(labels) + "\n")
+        print(f"✓ Label \"{name}\" created in acme/notify"); sys.exit(0)
+
+if (cmd == "issue" and sub == "list") or (cmd == "search" and sub == "issues"):
+    want_label = opt(["--label", "-l"], multi=True)
+    state = opt(["--state", "-s"], "open")
+    search = opt(["--search", "-S"], "") or ""
+    for p in positionals():  # gh search issues bare qualifiers / terms
+        if p.startswith("label:"): want_label.append(p[6:])
+        elif p.startswith("is:"): state = p[3:]
+        elif p.startswith("repo:"): pass
+        else: search += " " + p
+    rows = []
+    for meta, body, comments in all_issues():
+        if state != "all" and meta.get("state", "OPEN").lower() != state.lower(): continue
+        if want_label and not all(l in meta.get("labels", []) for l in ",".join(want_label).split(",")): continue
+        terms = [t for t in re.split(r"\s+", search.strip()) if t and ":" not in t]
+        hay = (meta["title"] + "\n" + body).lower()
+        if terms and not any(t.lower().strip('"') in hay for t in terms): continue
+        rows.append(issue_json(meta, body, comments, opt(["--json"], "number,title,url,labels,state")))
+    rows = rows[: int(opt(["--limit", "-L"], "30"))]
+    if has("--json"): emit(rows)
+    else:
+        for r in rows: print(f"#{r['number']}\t{r['title']}\t{','.join(l['name'] for l in r.get('labels', []))}")
+    sys.exit(0)
+
+if cmd == "issue" and sub == "view":
+    pos = positionals()
+    if not pos: die("issue number or URL required")
+    n = int(re.search(r"(\d+)$", pos[0]).group(1))
+    meta, body, comments = load_issue(n)
+    if has("--json"):
+        emit(issue_json(meta, body, comments, opt(["--json"]))); sys.exit(0)
+    print(f"{meta['title']} #{n}\nOpen • kei opened • {len(comments)} comments\nLabels: {', '.join(meta.get('labels', []))}\n--\n{body}\n")
+    if has("--comments"):
+        for c in comments:
+            print(f"——\n{c['user']} ({c['created_at']})\n{c['body']}\n")
+    print(f"View this issue on GitHub: {BASE}/issues/{n}"); sys.exit(0)
+
+if cmd == "issue" and sub == "create":
+    title = opt(["--title", "-t"]); 
+    if title is None: die("must provide --title and --body when not running interactively")
+    body = body_from_flags()
+    nums = [m["number"] for m, _, _ in all_issues()]
+    n = (max(nums) if nums else 19) + 1
+    labels = [l for v in opt(["--label", "-l"], multi=True) for l in v.split(",")]
+    lp = os.path.join(STATE, "labels.txt")
+    known = [l.strip() for l in open(lp)] if os.path.exists(lp) else ["bug", "enhancement"]
+    for l in labels:
+        if l not in known: die(f"could not add label: '{l}' not found")
+    meta = {"number": n, "title": title, "labels": labels, "state": "OPEN", "author": "tester", "createdAt": now}
+    if opt(["--parent"]): meta["parent"] = {"number": int(re.search(r"(\d+)$", opt(["--parent"])).group(1))}
+    if opt(["--type"]): meta["issueType"] = opt(["--type"])
+    save_issue(n, meta, body, [])
+    snapshot("create", n, body)
+    print(f"{BASE}/issues/{n}"); sys.exit(0)
+
+if cmd == "issue" and sub == "edit":
+    pos = positionals()
+    n = int(re.search(r"(\d+)$", pos[0]).group(1))
+    meta, body, comments = load_issue(n)
+    if has("--body-file") or has("-F") or has("--body") or has("-b"):
+        snapshot("edit-before", n, body)
+        body = body_from_flags(); snapshot("edit-after", n, body)
+    for v in opt(["--add-label"], multi=True):
+        for l in v.split(","):
+            if l not in meta["labels"]: meta["labels"].append(l)
+    for v in opt(["--remove-label"], multi=True):
+        meta["labels"] = [l for l in meta["labels"] if l not in v.split(",")]
+    if opt(["--title", "-t"]): meta["title"] = opt(["--title", "-t"])
+    save_issue(n, meta, body, comments)
+    print(f"{BASE}/issues/{n}"); sys.exit(0)
+
+if cmd == "issue" and sub == "comment":
+    pos = positionals()
+    n = int(re.search(r"(\d+)$", pos[0]).group(1))
+    meta, body, comments = load_issue(n)
+    text = body_from_flags()
+    cid = 3000000 + len(comments) + 1 + n
+    c = {"id": cid, "user": "tester", "created_at": now, "html_url": f"{BASE}/issues/{n}#issuecomment-{cid}", "body": text}
+    comments.append(c); save_issue(n, comments=comments)
+    snapshot("comment", n, text)
+    print(c["html_url"]); sys.exit(0)
+
+if cmd == "pr" and sub in ("view", "list"):
+    PRS = os.path.join(STATE, "prs")
+    prs = []
+    if os.path.isdir(PRS):
+        for f in sorted(os.listdir(PRS)):
+            if re.fullmatch(r"\d+\.json", f): prs.append(json.load(open(os.path.join(PRS, f))))
+    if sub == "list":
+        emit([{k: pr.get(k) for k in opt(["--json"], "number,title,state,url,headRefName").split(",")} for pr in prs]); sys.exit(0)
+    pos = positionals()
+    if not pos: die("pr number, URL, or branch required (fake gh has no current branch)")
+    key = pos[0]
+    pr = next((x for x in prs if str(x["number"]) == re.sub(r"\D", "", key) or x.get("headRefName") == key), None)
+    if not pr: die(f"no pull requests found for {key}")
+    if has("--json"): emit({k: pr.get(k) for k in opt(["--json"]).split(",")}); sys.exit(0)
+    print(f"{pr['title']} #{pr['number']}\n{pr['state']} • {pr.get('headRefName')} → main\n--\n{pr.get('body','')}\n"); sys.exit(0)
+
+if cmd == "issue" and sub in ("close", "delete", "reopen"):
+    die(f"refusing: fake gh does not allow `issue {sub}` in this eval (recorded in log)")
+
+if cmd == "api":
+    path = next((a for a in argv[1:] if not a.startswith("-") and a not in (opt(["--jq", "-q"], ""), )), "")
+    m = re.search(r"issues/(\d+)/comments", path)
+    if m:
+        _, _, comments = load_issue(int(m.group(1)))
+        rows = [{"id": c["id"], "user": {"login": c["user"]}, "created_at": c["created_at"], "html_url": c["html_url"], "body": c["body"]} for c in comments]
+        jq = opt(["--jq", "-q"])
+        if jq and shutil.which("jq"):
+            r = subprocess.run(["jq", "-r", jq], input=json.dumps(rows, ensure_ascii=False), text=True, capture_output=True)
+            sys.stdout.write(r.stdout); sys.stderr.write(r.stderr); sys.exit(r.returncode)
+        print(json.dumps(rows, ensure_ascii=False, indent=2)); sys.exit(0)
+    m = re.search(r"issues/(\d+)$", path)
+    if m:
+        meta, body, comments = load_issue(int(m.group(1)))
+        emit({"number": meta["number"], "title": meta["title"], "body": body, "labels": [{"name": l} for l in meta["labels"]], "state": meta["state"].lower()}); sys.exit(0)
+    if path.startswith("repos/") and path.count("/") == 2:
+        emit({"full_name": REPO["nameWithOwner"], "has_issues": True, "default_branch": "main"}); sys.exit(0)
+    die(f"unsupported api path in fake gh: {path}")
+
+die(f"unsupported in fake gh: {' '.join(argv[:2])} (supported: auth status, repo view, label list/create, issue list/view/create/edit/comment, search issues, api …/issues/N[/comments])")

@@ -1,0 +1,10 @@
+{
+  "number": 5,
+  "title": "Epic: 通知機能の刷新",
+  "labels": [
+    "enhancement"
+  ],
+  "state": "OPEN",
+  "author": "kei",
+  "createdAt": "2026-10-01T09:00:00Z"
+}

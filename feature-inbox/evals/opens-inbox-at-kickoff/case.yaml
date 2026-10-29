@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: opens-inbox-at-kickoff
+expected_outcome: |
+  A single new GitHub issue is created as the feature's inbox after checking that none exists yet for this feature:
+  title "inbox: 通知設定画面", label feature-inbox, body from the template with a meta block (feature slug, opened date,
+  last-ids Q=0 I=0 H=0), a 概要 that links epic #5 and states the scope in a few lines, an empty summary region between
+  the start/end markers, and a free-text メモ section. The existing unrelated inbox #8 (請求書 PDF 出力) is neither reused
+  nor edited. A pointer line "feature-inbox: 通知設定画面 → #N" is appended to CLAUDE.local.md and the report shows the
+  issue URL.
+context:
+  scaffold_script: place-files.sh

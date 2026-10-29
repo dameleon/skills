@@ -1,0 +1,15 @@
+schema_version: "1.1"
+name: posts-handoff-mid-task
+expected_outcome: |
+  The inbox is resolved as #12 from the CLAUDE.local.md pointer without the user naming it, and the task issue is
+  resolved as #44 from PR #45's "Closes #44"; no new issue is created. The full 報告 for PR #45 is posted as one
+  comment on the task issue #44. Exactly one comment is posted to the inbox #12: its first line links the #44
+  comment; it contains a [決定] → Q-1 entry recording "メールのみ" with the user as 決定者; a [決定] Q-n entry (new ID, no →) for
+  the three frequency options with 決定者: エージェント (an agent choice the human can overturn); a [未決] Q-n entry
+  for the read-flag unit marked 判断者: 人間 with options and a 推奨; a [課題] I-2 entry for the N+1 at
+  app/controllers/notification_list.rb:34; a [引継ぎ] H-1 entry about MAIL_DRIVER=log on staging; and at most a
+  one-line 報告 pointing at #44. The body of #12 is then edited once: last-ids becomes Q=4 I=2 H=1, Q-1 moves from
+  未決リスト to 決定済み, the agent decision appears in 決定済み with 決定者: エージェント, the read-flag question / I-2 / H-1 appear in their lists,
+  Q-2 stays open, and everything outside the meta block and summary region is preserved. The issue is not closed.
+context:
+  scaffold_script: place-files.sh

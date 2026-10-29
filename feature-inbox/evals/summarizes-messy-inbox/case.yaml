@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: summarizes-messy-inbox
+expected_outcome: |
+  All nine comments of inbox #12 are read and only the summary region of the body (plus the meta block's
+  last-ids / summarized-through) is rewritten, in one edit. 未決リスト contains exactly Q-3 (判断者: 人間, with a note
+  that kei is checking with the design team) and Q-4 (判断者: エージェント可). 決定済み contains Q-1 (from the formal
+  決定 comment) and Q-2 (inferred from kei's plain-text "手動既読でいいです", marked 推定). 課題 shows I-1 as resolved
+  by PR #47 and I-2 as open. 引継ぎ・注意 keeps H-1 as active (tanaka confirmed staging is still log). 最新状況 says
+  PR #45 is awaiting re-review, PR #47 merged the I-1 fix, and the next step waits on Q-3. last-ids becomes Q=4 I=2
+  H=1. No comment is posted. 概要, 使い方 and the メモ section are byte-for-byte unchanged. The chat reply lists the
+  open decisions.
+context:
+  scaffold_script: place-files.sh
