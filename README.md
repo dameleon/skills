@@ -20,7 +20,6 @@
 | [`plan-refinement`](plan-refinement/) | 標準 planner のプランを 5 軸で機械的に精緻化する。 |
 | [`plan-review`](plan-review/) | 外部 LLM CLI で実装プランをレビューし改善する。 |
 | [`planner-eval`](planner-eval/) | plan 段に挟む介入の効果を ablation で empirical に測る。 |
-| [`sentry-cli`](sentry-cli/) | Sentry CLI をコマンドラインから操作するためのガイド。 |
 | [`test-design`](test-design/) | 結合 / 外部結合テストのケースを設計し、独立レビューで検証する。 |
 
 ## Install
