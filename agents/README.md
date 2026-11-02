@@ -13,15 +13,22 @@ These are **samples for manual install**, not auto-installed. Copy them and adju
 
 | Runtime | Personal (all projects) | Project | Source |
 |---|---|---|---|
-| Claude Code | `~/.claude/agents/` | `.claude/agents/` | `claude-code/*.md` |
-| Cursor | `~/.cursor/agents/` | `.cursor/agents/` | `cursor/*.md` |
+| Claude Code | `$CLAUDE_CONFIG_DIR/agents/` (default `~/.claude/agents/`) | `.claude/agents/` | `claude-code/*.md` |
+| Cursor | `$CURSOR_CONFIG_DIR/agents/` (default `~/.cursor/agents/`) | `.cursor/agents/` | `cursor/*.md` |
+
+Symlink rather than copy, so edits in this repo take effect without reinstalling:
 
 ```bash
-# Claude Code (personal)
-cp claude-code/senior-coder.md  claude-code/generic-coder.md  ~/.claude/agents/
+# Claude Code (personal) — run from this agents/ directory
+mkdir -p "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/agents"
+ln -s "$PWD"/claude-code/{senior-coder,generic-coder}.md "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/agents/"
 # Cursor (personal)
-cp cursor/senior-coder.md       cursor/generic-coder.md       ~/.cursor/agents/
+mkdir -p "${CURSOR_CONFIG_DIR:-$HOME/.cursor}/agents"
+ln -s "$PWD"/cursor/{senior-coder,generic-coder}.md "${CURSOR_CONFIG_DIR:-$HOME/.cursor}/agents/"
 ```
+
+When a workspace sets `CLAUDE_CONFIG_DIR` / `CURSOR_CONFIG_DIR`, `~/.claude/agents/` is **not**
+read — install under the config dir, or the agent type silently does not exist.
 
 Identity comes from the `name:` frontmatter, not the filename — keep `name`
 values exactly `senior-coder` / `generic-coder` so agent-flow's preference picks them up.
@@ -37,38 +44,25 @@ caused empty-handed subagent reports.
 
 ## Model field (adjust freely)
 
-- Claude Code: `opus` / `sonnet` / `haiku` / `fable` / a full id (`claude-opus-4-8`) / `inherit`.
+- Claude Code: `opus` / `sonnet` / `haiku` / `fable` / a full id (`claude-sonnet-5-5`) / `inherit`.
+  `inherit` means "whatever the parent session runs" — on a Fable / Opus session that is the most
+  expensive tier, so name a model explicitly for routine roles. Agents that leave `model` unset fall
+  back to `CLAUDE_CODE_SUBAGENT_MODEL` when it is set (e.g. `"env": {"CLAUDE_CODE_SUBAGENT_MODEL":
+  "sonnet"}` in `settings.json`).
 - Cursor: `inherit` / `fast` / a specific model id.
 
 ---
 
-# Delegation subagent: `cursor-delegate`
+# Retired (Claude Code): `cursor-delegate` subagent
 
-The canonical executor for the `cursor-delegate` skill (`skills/cursor-delegate/`) — unrelated to
-agent-flow. It offloads a small, goal-clear task to the Cursor agent CLI (`cursor-agent`)
-headlessly, then independently acceptance-checks the result against the real files before reporting a
-concise verdict, keeping the routine work out of the caller's context. Scoped to `Bash, Read, Grep,
-Glob` (no Edit/Write) so it can only delegate-and-verify, never hand-implement.
+The Claude Code `cursor-delegate` subagent is **removed**. It inherited the caller's model, so a
+Fable / Opus session paid frontier-model tokens just to shepherd a cheap `cursor-agent` run. The
+`cursor-delegate` skill now calls its bundled `scripts/delegate.sh` directly — no Claude model sits
+between the caller and Cursor (see `skills/cursor-delegate/reference.md`). Delete any leftover
+`$CLAUDE_CONFIG_DIR/agents/cursor-delegate.md` symlink.
 
-Two ways it gets used, both landing on this same role:
-- **Direct dispatch** — the main agent picks `subagent_type: cursor-delegate` via the Agent tool
-  whenever it judges a task simple enough to offload.
-- **Via the skill** — `skills/cursor-delegate/SKILL.md` forks into it (`context: fork` +
-  `agent: cursor-delegate`), injecting the task.
-
-**Install is required** for the skill (it forks into this agent; an unknown agent type is a hard
-error, not a silent fallback):
-
-```bash
-# Claude Code (personal)
-cp claude-code/cursor-delegate.md  ~/.claude/agents/
-# Cursor (personal) — see the note in the file; intended for a Claude Code host calling Cursor
-cp cursor/cursor-delegate.md       ~/.cursor/agents/
-```
-
-Keep the `name:` value exactly `cursor-delegate` so the skill's `agent: cursor-delegate` and direct
-`subagent_type: cursor-delegate` dispatch both resolve to it. `cursor-agent` itself must be installed
-and logged in (`cursor-agent status`).
+The Cursor-host variant `cursor/cursor-delegate.md` is still here, for the rare case where one
+Cursor agent should drive another headless `cursor-agent`.
 
 ---
 

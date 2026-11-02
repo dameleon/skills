@@ -1,53 +1,84 @@
 ---
 name: cursor-delegate
 description: >-
-  Offload a well-scoped, self-contained task to the Cursor agent CLI (`cursor-agent`) via the
-  `cursor-delegate` subagent, which runs it headlessly and independently acceptance-checks the result
-  before reporting a concise verdict — so the routine work and its verbose output stay OUT of your
-  main context. Use this whenever you judge a task simple and goal-clear enough to hand off and
-  verify: localized code edits, mechanical refactors, boilerplate / scaffolding, format / lint fixes,
-  a focused test, a small script, or a contained bug fix. Default model is `auto` (cheap; escalates
-  to Composer 2.5 only when flagged hard, falls back to `auto` on limit / cost errors). Trigger
-  phrases: "cursorに投げて", "cursor-agentに任せて", "これは簡単だからcursorに委譲", "delegate to cursor",
-  "offload to cursor", "サブエージェント的にcursorで", "context節約のためcursorへ". Do NOT use for ambiguous
-  specs, large cross-cutting refactors, or security-sensitive changes — keep those yourself.
-argument-hint: "[task to delegate]  (optional hints: model=composer, accept=<done-criterion>)"
-context: fork
-agent: cursor-delegate
+  Offload a well-scoped task straight to the Cursor agent CLI (`cursor-agent`) via a bundled script
+  that dispatches it headlessly, runs your objective acceptance check, resume-fixes on failure, and
+  prints a short verdict. No Claude subagent sits in between, so the work costs Cursor tokens, not
+  Claude tokens, and its verbose output stays out of your context. Use whenever a task is simple and
+  verifiable with one shell command: localized edits, mechanical refactors, boilerplate, format /
+  lint fixes, a focused test, a small script, a contained bug fix. Model `auto` by default
+  (Composer 2.5 when flagged hard). Triggers: "cursorに投げて", "cursor-agentに任せて",
+  "これは簡単だからcursorに委譲", "delegate to cursor", "offload to cursor", "context節約のためcursorへ".
+  Not for ambiguous specs, large cross-cutting refactors, security-sensitive changes, or work with
+  no objective shell check.
+argument-hint: "[task to delegate]  (optional hints: model=composer, accept=<shell check>)"
 ---
 
 # Cursor Delegate
 
-This skill is a thin entry point. Its content is injected into the **`cursor-delegate` subagent**,
-which carries the full workflow (frame → dispatch to `cursor-agent` → acceptance-check the real
-files → resume-fix up to 2 rounds → report). The subagent is also dispatchable on its own — the main
-agent can pick it via the Agent tool whenever it judges a task simple enough to offload. Either path
-lands on the same delegation contract.
+Hand the task to `cursor-agent` through `scripts/delegate.sh`. The script owns the whole loop —
+dispatch → run the acceptance check → on failure `--resume` the same Cursor session with the failing
+output (max 2 rounds) → print a verdict. It contains no LLM: the acceptance decision is the check's
+exit code, and the fix prompt is built mechanically from the check's output. Your job is only to
+frame the task, pick the check, and read the verdict.
 
-## Task
+Task: $ARGUMENTS
 
-Delegate the following to `cursor-agent` and return only a concise verdict:
+## 1. Frame (you, before dispatch)
 
-> $ARGUMENTS
+- **Task** — restate it as one self-contained instruction `cursor-agent` can act on without asking
+  questions (it runs headlessly). Name the files to touch and say "do not touch other files" when
+  scope matters.
+- **Acceptance check** — one shell command whose exit 0 proves the goal: the relevant test, a build,
+  lint on the touched files, or a small `python3 -c` / `grep -q` assertion. If the caller passed
+  `accept=...`, use it. It must not be something `cursor-agent` can trivially satisfy by editing the
+  check itself (point at an existing test, or assert on behavior, not on a file it writes).
+- **Refuse** when no objective check exists ("make comments friendlier", "improve readability"),
+  when the spec is ambiguous, or when the change is security-sensitive or destructive. Do it yourself
+  or ask; never invent a weak proxy check to manufacture a PASS.
+- `cursor-agent` edits the current directory and inherits its branch / worktree. If you are on a
+  protected branch and the change is non-trivial, set up the worktree first and pass `--workdir`.
 
-Optional hints in the task text:
-- `model=composer` — escalate from `auto` to Composer 2.5 for a harder task (otherwise stay on
-  `auto`; on a limit / cost error, fall back to `auto`).
-- `accept=<criterion>` — pin the done-criterion you will verify against; otherwise derive the
-  smallest objective check that proves the goal.
+## 2. Dispatch (one Bash call)
 
-Follow your operating contract: **delegate the doing, verify it against the real files, never trust
-`cursor-agent`'s own success message.** If the task is ambiguous, security-sensitive, or too large
-to state a done-criterion for, stop and report that instead of delegating.
+```bash
+"<skill-dir>/scripts/delegate.sh" --workdir "<abs repo or worktree path>" \
+  --accept '<shell check>' [--model composer-2.5] [--rounds 2] \
+  -- "<self-contained task>"
+```
 
-## Prerequisite
+- `<skill-dir>` is the directory containing this SKILL.md.
+- Use a generous Bash timeout (`600000`) or `run_in_background` — real tasks take minutes.
+- `--model composer-2.5` only when the caller passed `model=composer`; otherwise leave the default
+  `auto`. A limit / availability error on a non-`auto` model retries once on `auto` automatically.
 
-This skill forks into the `cursor-delegate` subagent, so that subagent must be installed at
-`~/.claude/agents/cursor-delegate.md` (or `.claude/agents/`) — an unknown agent type is a hard
-error, not a silent fallback. See `agents/README.md` for the one-line install. `cursor-agent` itself
-must be installed and logged in (`cursor-agent status`).
+Exit codes: `0` PASS, `1` NG (check still failing after the fix rounds), `2` usage / preflight,
+`3` cursor-agent error (auth, limit, crash — read the `acceptance:` line).
+
+## 3. Read the verdict
+
+The script prints only this (full transcripts stay in the `logs:` directory):
+
+```
+status: done | failed
+model: <cursor model used>
+changed: <files cursor-agent touched; pre-existing dirt excluded>
+check artifacts: <files the check itself produced, e.g. __pycache__ — not cursor's edits>
+acceptance: PASS — `<check>` exit 0 | NG — <why>
+fix rounds: <n>
+session: <id — `cursor-agent --resume <id>` for follow-up>
+cursor summary: <cursor's own final message, truncated; a claim, not evidence>
+logs: <dir>
+```
+
+- **PASS** — confirm `changed:` stays within the task's scope. Look at the diff only if the list is
+  surprising; the check already proved the goal, so don't re-audit.
+- **NG / failed** — relay the gap. Do not hand-fix silently; tell the user the delegation did not
+  take, then decide whether to do it yourself.
+- `exit 2` with `cursor-agent not found` / `not logged in` → the user installs it or runs
+  `cursor-agent login` themselves.
 
 ## Reference
 
-For the full `cursor-agent` flag set, the model tier table, the JSON result schema, error / limit
-detection patterns, and worktree / sandbox notes, read `reference.md` in this skill directory.
+Flag set, model tiers, JSON schema, error classification, permission setup for auto mode, and
+worktree / sandbox notes: `reference.md` in this skill directory.

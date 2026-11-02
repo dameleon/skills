@@ -1,8 +1,8 @@
 # Reference: cursor-delegate
 
-Detailed reference for driving `cursor-agent` headlessly. The SKILL.md body has the workflow; this
-file is the lookup table — read it when you need a specific flag, the JSON schema, or the failure
-handling rules.
+Detailed reference for driving `cursor-agent` headlessly. `scripts/delegate.sh` implements the loop
+and SKILL.md says how to call it; this file is the lookup table — read it when you need a specific
+flag, the JSON schema, the failure handling rules, or to change the script.
 
 ## Table of contents
 
@@ -15,7 +15,7 @@ handling rules.
 - [Worktree & cwd](#worktree--cwd)
 - [Sandbox & force safety](#sandbox--force-safety)
 - [Troubleshooting](#troubleshooting)
-- [Companion subagent](#companion-subagent)
+- [Why there is no Claude subagent](#why-there-is-no-claude-subagent)
 
 ## Command anatomy
 
@@ -89,7 +89,7 @@ a model), or when the task is plainly beyond `auto`. Otherwise stay on `auto`. T
 
 | Field | Use |
 |---|---|
-| `result` | The agent's final message. A *summary*, not proof — verify against real files (SKILL.md Step 3). |
+| `result` | The agent's final message. A *summary*, not proof — the acceptance check decides, not this text. |
 | `is_error` / `subtype` | Failure signal. Failed if `is_error` true or `subtype` ≠ `"success"`. |
 | `session_id` | Pass to `--resume` for the fix loop or further caller follow-up. |
 | `usage` | Token accounting if the caller wants cost reported. |
@@ -106,7 +106,7 @@ fails, read `result` and `$TMP/cursor.err` and classify:
 - **Auth** — `not logged in`, `login`, `authenticate`. → Abort and report: the user must run
   `cursor-agent login` themselves (don't try to auth on their behalf).
 - **Task failure** (it ran but couldn't do the work) — feed the specifics into the resume fix loop
-  (SKILL.md Step 4).
+  (`delegate.sh` does this automatically, up to `--rounds`).
 
 Match keywords case-insensitively and treat the list as indicative, not exhaustive.
 
@@ -151,13 +151,13 @@ auto-mode classifier vets every shell command. An unlisted `cursor-agent` call �
 editing its own `settings.json` to widen permissions mid-run (a `[Self-Modification]` denial), so
 this is **not** something the run can fix dynamically — the user must set it up beforehand:
 
-- `permissions.allow`: add `Bash(cursor-agent:*)` and `Bash(agent:*)` (`agent` is the same binary).
+- `permissions.allow`: add the script (`Bash(<abs skill-dir>/scripts/delegate.sh:*)`) plus
+  `Bash(cursor-agent:*)` and `Bash(agent:*)` (`agent` is the same binary) for manual follow-ups.
   Listed allow rules bypass the classifier under `defaultMode: "auto"`.
 - `sandbox.excludedCommands`: add `cursor-agent:*` and `agent:*`, or the sandbox blocks Cursor's
   API traffic (its host is not in `allowedDomains`). This mirrors how `codex` / `gemini` are set up.
 
-With the `TMP=…; cursor-agent …` compound dispatch, the allow rule still matches the `cursor-agent`
-segment, but running `cursor-agent` as its own line is the cleanest match.
+Calling `delegate.sh` as its own command (not inside a compound line) gives the cleanest match.
 
 ## Troubleshooting
 
@@ -170,19 +170,28 @@ segment, but running `cursor-agent` as its own line is the cleanest match.
 | Empty / non-JSON stdout | Check `$TMP/cursor.err` and `exit` code; the run likely errored before producing a result. |
 | Timeout | Default Bash timeout is too short for real tasks. Raise it (`timeout: 600000`) or run in background. |
 
-## The cursor-delegate subagent (canonical executor)
+## Why there is no Claude subagent
 
-The full delegation workflow lives in the **`cursor-delegate` subagent**, not in the skill. The
-subagent (`agents/claude-code/cursor-delegate.md`, with a Cursor variant at
-`agents/cursor/cursor-delegate.md`) is the canonical executor and the reusable `subagent_type`:
+Earlier versions forked into a `cursor-delegate` Claude Code subagent (`context: fork` +
+`agent: cursor-delegate`) that framed the task, ran `cursor-agent`, and judged the result. That
+subagent inherited the caller's model, so a Fable / Opus session paid frontier-model tokens just to
+shepherd a cheap Cursor run — and when the agent definition was not installed, the fork silently ran
+as the parent anyway. The judging it did was mostly "run the check, read the exit code", which a
+script does deterministically.
 
-- The main agent can **dispatch it directly** via the Agent tool whenever it judges a task simple
-  enough to offload — no skill needed.
-- The **skill** (`SKILL.md`) is a thin entry point that forks into this subagent (`context: fork` +
-  `agent: cursor-delegate`); the skill content is injected into the subagent.
+Now the caller (who already holds the context needed to frame the task and pick the check) calls
+`scripts/delegate.sh` directly. Claude spends one Bash call and reads a ~9-line verdict; Cursor
+does the work. The Cursor-host variant `agents/cursor/cursor-delegate.md` is unaffected.
 
-Because the skill forks into it, the subagent is a **prerequisite**, not an optional add-on: install
-`agents/claude-code/cursor-delegate.md` to `~/.claude/agents/` (or `.claude/agents/`). An unknown
-agent type is a hard error — the skill will not silently fall back. The subagent is scoped to
-`Bash, Read, Grep, Glob` (no Edit/Write) so it can only delegate-and-verify, never hand-implement.
-See `agents/README.md` for install.
+## Script internals (`scripts/delegate.sh`)
+
+- **Changed-file detection** — snapshots `git status --porcelain -z -uall` with a blob hash per
+  path before and after, so pre-existing dirty files are excluded unless cursor-agent edits them
+  further. Paths that change *while the acceptance check runs* are reported separately as
+  `check artifacts:`.
+- **Failure test** — a run failed if exit ≠ 0, `is_error` is not `false`, or `subtype` ≠
+  `success`. (jq note: `.is_error // "true"` is wrong — `//` treats a literal `false` as missing.)
+- **Fix prompt** — resumes the same session with the check command, its exit code, and the last 40
+  lines of its output, asking for a fix within the original scope without editing the check.
+- **Logs** — every run's JSON / stderr and every check's output go to `mktemp -d` under `$TMPDIR`,
+  never into the repo.

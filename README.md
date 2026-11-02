@@ -12,7 +12,7 @@
 | [`completion-check`](completion-check/) | 受入条件の充足を、自己申告を読まずコードから独立検証する。 |
 | [`copilot-review`](copilot-review/) | GitHub Copilot CLI を使ったコード / プランのレビューと修正。 |
 | [`cross-review`](cross-review/) | 外部 LLM CLI（Codex / Gemini）による多観点レビューと、重大度ルールに基づく自動修正。 |
-| [`cursor-delegate`](cursor-delegate/) | 小さく明確なタスクを Cursor agent CLI へ委譲し、結果を独立に受入検証する。 |
+| [`cursor-delegate`](cursor-delegate/) | 小さく明確なタスクを Cursor agent CLI へ直接委譲し(Claude の subagent を挟まない)、受入チェックの exit code で判定する。 |
 | [`feature-inbox`](feature-inbox/) | epic / feature 単位の inbox issue。未決・課題・報告・引継ぎを人間とエージェントが共有し、サマリとトリアージ支援を行う。 |
 | [`incremental-commit`](incremental-commit/) | 変更を論理単位・物理単位に分割してコミットする。 |
 | [`jj-commit`](jj-commit/) | Jujutsu (jj) でのコミット / プッシュを扱う。 |
