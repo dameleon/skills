@@ -89,6 +89,7 @@ conditions:
 
 executor:
   agent: general-purpose              # 必須。bias-free に動かす subagent 種別
+  model: sonnet                       # 任意。デフォルト sonnet。Agent ツールの model に渡す (未指定だと親モデルを継承し、tasks × conditions × runs 回すと高くつく)
   runs_per_plan: 3                    # 必須。1 (plan, condition) あたりの繰り返し回数
   allow_tools: [Read, Grep, Glob, Bash, Edit, Write]  # 任意。executor に許す tool 集合
 
@@ -171,7 +172,8 @@ mode によって分岐する。
 3. **介入適用**: 条件ごとに `plan_raw` に介入を適用。`none` ならそのまま、`plan-refinement` なら skill を呼んで refined plan を得る。条件ごとに `plan_used` (executor に渡すプラン) と `intervention_log` (介入が何をしたか) を保存。
 4. **静的指標算出**: `plan_used` 単体から計算 (executor を回さなくても出る)。後述「メトリクス」節。
 5. **bias-free executor 実行**: 各 (task, condition) について N 回、`plan_used` のみを入力として executor を独立 dispatch。executor の出力 (diff, 発話ログ) を保存。
-   - dispatch ごとに新しい subagent を立てる。同一 subagent を再利用すると前回の文脈で bias する。
+   - dispatch ごとに新しい subagent を立てる。同一 subagent を再利用すると前回の文脈で bias する。`fork` は親文脈を引き継ぐので使わない。
+   - Agent ツールの `model` に `executor.model` (デフォルト `sonnet`) を必ず渡す。全条件・全 run で同じモデルに固定しないと、条件間の差にモデル差が混ざる。
    - mode が `static` の場合は本ステップを skip。
 6. **動的指標算出**: 各 (task, condition, run) の executor 出力から計算。`static` モードでは skip。
 7. **条件間比較**: 各指標について baseline vs treatment の差を出す。`full` ではタスク間ブートストラップで 95% CI を算出 (デフォルト 1000 iter)。`static` は単一観測のため CI なし point estimate のみ。
@@ -334,6 +336,7 @@ conditions:
 
 executor:
   agent: general-purpose
+  model: sonnet
   runs_per_plan: 3
   allow_tools: [Read, Grep, Glob, Bash, Edit, Write]
 

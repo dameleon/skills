@@ -73,7 +73,7 @@ argument-hint: "[target] [--scope integration|external|both] [--style scenario|f
 
 ### Phase 3 — Verify(case-reviewer subagent, 独立・批判的)
 **生成とは別の** subagent を必ず起動して検証する。Phase 1/2 をインライン生成した場合でも、レビューは
-fork した subagent に出す(同一文脈での自己レビューは禁止)。独立性の本質は「生成時の思考過程を参照しない fresh なパス」であり、fork はその第一手段。dispatch できない環境では、生成根拠を見ずに `CASES{ext}`+`PLAN.md`+Test Basis だけを再読する別パスで代替してよい。レビュー担当は設計担当の思考過程を見ず、
+新規に起動した subagent に出す(同一文脈での自己レビューは禁止)。独立性の本質は「生成時の思考過程を参照しない fresh なパス」であり、新規 subagent はその第一手段。Claude Code の `fork` は親の会話文脈(=生成時の思考過程)を引き継ぐうえモデルも親に固定されるので、レビューには使わない。dispatch できない環境では、生成根拠を見ずに `CASES{ext}`+`PLAN.md`+Test Basis だけを再読する別パスで代替してよい。レビュー担当は設計担当の思考過程を見ず、
 `CASES{ext}` + `PLAN.md` + Test Basis + `verification.md` のルーブリックだけで粗探しする。
 findings を `REVIEW.md` に出す。各 finding に ケースID / 違反項目 / 重大度(blocker|major|minor) /
 **分類(修正可|要仕様判断)** / 具体修正案 を付ける。
@@ -121,6 +121,8 @@ finding を「分類」を先に見て、次に「重大度」で処理する。
 ## サブエージェント dispatch
 
 Agent/Task ツールで起動する。Claude Code では組み込み type を使う(`general-purpose`、読み取り中心の解析は `Explore`)。
+組み込み type は `model` を指定しないと親セッションのモデルを継承するので、**`model` を明示する**:
+case-designer と `Explore` は `"sonnet"`、case-reviewer は orchestrator 自身と同じモデルを名前で指定する(例 `"opus"` / `"fable"`。既定サブエージェントモデルが設定されていても下がらないように)。レビューの検出力は成果物の品質に直結するため、ここだけは格下げしない。
 Phase 0 で確定した値を **穴埋めして literal で** prompt に渡す(プレースホルダのまま投げない)。
 埋める値: `{skill-dir}`(絶対パス) / `{out-dir}`(絶対パス) / `{target}`(解決済みパス or チケット・URL・本文) /
 `{scope}` / `{style}` / `{ext}`(`output-formats.md` の対応表) / `{template}`(写経元 `templates/cases.*`) / `{test-basis}`(一次情報リスト)。
@@ -131,7 +133,7 @@ Phase 0 で確定した値を **穴埋めして literal で** prompt に渡す(�
 **case-reviewer(Phase 3)** 穴埋め骨子(独立性を強調):
 - 「あなたは批判的レビュー担当。設計者の意図を推測せず、`{out-dir}/CASES{ext}` と `{out-dir}/PLAN.md`・Test Basis だけを根拠に、`{skill-dir}/verification.md` のルーブリックで粗探しせよ。観点漏れ・トレーサビリティ欠落・実施者依存・期待結果の曖昧さ・正常系偏り・オラクルの独立性(期待値が実装由来でないか)・ケースの検出力(選んだ値で差が出るか)を重点に。各 finding に ケースID / 違反項目 / 重大度(blocker|major|minor) / 分類(修正可|要仕様判断) / 具体修正案 を付け、`{out-dir}/REVIEW.md` に出力。問題が無ければ空で返す」
 
-レビューは Phase 1/2 をインライン生成した場合でも、必ず生成とは別の fork した subagent 呼び出しにする(自己レビュー禁止)。
+レビューは Phase 1/2 をインライン生成した場合でも、必ず生成とは別の新規 subagent 呼び出しにする(`fork` は不可。自己レビュー禁止)。
 
 **ファイル所有権**: 各 subagent は dispatch で指定したファイルのみ作成・変更し、自分が作っていないファイルを削除しない。orchestrator は subagent の返答内容を正(source of truth)とし、最終成果物は Phase 5 で orchestrator 自身が確定させる(中間ファイルが残存していることに依存しない)。構造チェック(列数・区切りの検算など)は producing subagent の完了報告後に orchestrator 自身が実パーサ等で行う(書き込み途中のファイルや subagent の自己申告で判断しない)。
 
