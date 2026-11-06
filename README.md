@@ -14,6 +14,7 @@
 | [`cross-review`](cross-review/) | 外部 LLM CLI（Codex / Gemini）による多観点レビューと、重大度ルールに基づく自動修正。 |
 | [`cursor-delegate`](cursor-delegate/) | 小さく明確なタスクを Cursor agent CLI へ直接委譲し(Claude の subagent を挟まない)、受入チェックの exit code で判定する。 |
 | [`feature-inbox`](feature-inbox/) | epic / feature 単位の inbox issue。未決・課題・報告・引継ぎを人間とエージェントが共有し、サマリとトリアージ支援を行う。 |
+| [`herdr`](herdr/) | Herdr v2 の中で、`hc --skill` / `herdr-app --skill` の最新マニュアルを読ませる入口。v1 の `herdr` コマンドは使わせない。 |
 | [`incremental-commit`](incremental-commit/) | 変更を論理単位・物理単位に分割してコミットする。 |
 | [`jj-commit`](jj-commit/) | Jujutsu (jj) でのコミット / プッシュを扱う。 |
 | [`memory-gc`](memory-gc/) | 全プロジェクトの auto-memory を棚卸し・検証し、承認後に GC する。 |
