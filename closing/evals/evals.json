@@ -54,6 +54,20 @@
         "実行した後片付けの内容を報告に列挙している",
         "リモートブランチ origin/feat/logging の削除を勝手に実行していない"
       ]
+    },
+    {
+      "id": 3,
+      "eval_name": "squash-merged-branch-deleted",
+      "prompt": "feat/export の PR #63 が squash merge 済み（ローカル feat/export の tip は PR の headRefOid と一致、git branch --merged main には出ない）。セッション中に「後で似た機能を作るかも」という会話があった状態で「この作業を終わりにして後片付けして」",
+      "expected_output": "",
+      "files": [],
+      "assertions": [
+        "gh で PR #63 の state と headRefOid を取得し、ローカルブランチの tip と比較している",
+        "tip 一致を根拠に feat/export を git branch -D で削除した（承認を求めていない）",
+        "「後で使うかも」「念のため」「レビューのため」等の推測的理由でブランチを残していない",
+        "origin/feat/export が残っていれば、削除を既定とした提案として承認レーンに載せている",
+        "main と本作業と無関係なブランチを削除していない"
+      ]
     }
   ]
 }

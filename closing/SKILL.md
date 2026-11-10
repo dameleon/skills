@@ -46,10 +46,21 @@ acting on an assumed one means deleting the wrong path.
 whose state it cannot verify; `git worktree remove` without `--force` refuses a dirty
 worktree; `git branch -d` refuses an unmerged branch. Those refusals are why the
 corresponding actions can run unattended at all, so never reach for `--force` or `-D` on
-your own judgment — doing so removes the very check that made the action safe. The one
-sanctioned override is `discard_changes: true` on `ExitWorktree`, and only when Step 1's
-inventory already proved the worktree clean (no uncommitted tracked changes, no unpushed
-commits).
+your own judgment — doing so removes the very check that made the action safe. Two
+overrides are sanctioned, each only when Step 1's inventory already proved what the refused
+check would have proved: `discard_changes: true` on `ExitWorktree` when the worktree is clean
+(no uncommitted tracked changes, no unpushed commits), and `git branch -D` on a
+squash / rebase-merged branch whose tip equals the merged PR's `headRefOid` (see
+"Branches" below).
+
+**ブランチは消すのが既定。** A branch of this work is deleted unless one of the keep
+conditions in "Branches" below is observed in Step 1's output. Keeping is not the neutral
+choice: every kept branch is something the user later has to triage by hand, and a close that
+leaves the branch behind has not closed the work. Speculative reasons do not count —
+"後続作業で使うかもしれない", "レビューのため", "念のため", "参照用に", "履歴として". A
+merged branch's commits already live on the default branch and in the PR, and a branch can be
+recreated from the PR (`gh pr checkout <n>`) or from origin, so none of those needs a local
+branch to survive.
 
 ## Step 0: Parse arguments
 
@@ -76,7 +87,8 @@ treat empty output as "none", never as "probably fine".
 | Stashes | `git stash list` |
 | Worktrees | `git worktree list --porcelain` |
 | PR state | `gh pr view --json number,title,url,state,isDraft,mergedAt,reviewDecision,statusCheckRollup` |
-| Merged local branches | `git branch --merged <default-branch>`, plus `git branch -vv` for upstreams |
+| Merged local branches | `git fetch --prune`, then `git branch --merged <default-branch>`, plus `git branch -vv` for upstreams |
+| This work's branch vs. its PR | `gh pr list --head <branch> --state all --json number,state,headRefOid,mergedAt`, and `git rev-parse <branch>` — a squash / rebase merge leaves the branch out of `--merged`, so this is how it is detected |
 | Background bash / monitors | the tasks this session started (visible via `/tasks`); stop with `TaskStop` |
 | Cron / scheduled agents | `CronList` |
 | Artifact watches | `Artifact action:"status"` |
@@ -182,9 +194,35 @@ Step 1 — otherwise it belongs in the other lane.
   a worktree to answer it is work this close would have created — so while a PR is open,
   keep the worktree and say so in the report. Keeping is the do-nothing option, so it costs
   no approval; the user can ask for it to go.
-- **`git branch -d <name>`** for a branch merged into the default branch and present on
-  origin. Never the default branch, never the branch of an open PR.
+- **Deleting this work's local branches** per "Branches" below.
 - **`rmdir` on the container directory** (e.g. `.wt`) once empty — it fails harmlessly if not.
+
+### Branches
+
+Scope is the branches this work created or used; leave unrelated branches alone. For each
+one, delete it unless a keep condition holds.
+
+Keep conditions — the complete list. Each must be cited in the report with the inventory
+fact that showed it:
+
+1. It is the default branch.
+2. It is checked out in a worktree that this close keeps (e.g. because its PR is open).
+3. Its PR is open (cite the PR number and state from `gh`).
+4. It has commits that exist nowhere else — not on origin and not reachable from the
+   default branch. This one is not a keep but a 判断 item in the approval lane (see below).
+
+Anything else, including every reason of the kind "後続作業のため", "レビューのため",
+"念のため", is not a keep condition. If you find yourself writing one, delete the branch.
+
+How to delete, by what the inventory showed:
+
+- Listed by `git branch --merged <default-branch>` → `git branch -d <name>`.
+- Not listed, but its PR is `MERGED` and `git rev-parse <name>` equals that PR's
+  `headRefOid` (squash / rebase merge, no commits added after the merge) →
+  `git branch -D <name>`. The equality is the proof that nothing on the branch is lost, so
+  `-D` here is sanctioned; if the tips differ, the extra commits make it case 4.
+- Its PR is `CLOSED` without merge, or there was no PR, and every commit is on origin →
+  approval lane, proposed as 削除 (default), not as an open question.
 
 ### 承認が必要（1回にまとめて聞く）
 
@@ -195,7 +233,10 @@ Step 1 — otherwise it belongs in the other lane.
   scratchpad.
 - **Anything needing `--force` or `-D`**, or an unproven `discard_changes`. Do not propose
   these unless the user asked; if they did, state exactly what is lost.
-- **Remote-side changes**: deleting a remote branch, closing a PR or a ticket.
+- **Remote-side changes**: deleting a remote branch, closing a PR or a ticket. A remote
+  branch whose PR is merged (and still exists after `git fetch --prune`) is listed as
+  `[branch] origin/<name> を削除する（既定）` — a proposal to delete, which the user can
+  strike, not a question of whether to keep it.
 - **Unpushed commits whose fate is unclear** — push as-is? WIP-commit the fragment first?
   leave the branch alone? Present the options with what each costs; do not pick for them.
 - **Any routing you are not confident about** — propose the alternatives instead of guessing
@@ -249,7 +290,7 @@ Then the cleanup, ordered so nothing irreversible precedes its check:
 1. Stop what is running (`TaskStop`, `CronDelete`, unwatch).
 2. Remove accounted-for scratch files, so the removal does not need a force flag.
 3. Remove the worktree, using the criteria and commands from the 承認不要 lane above.
-4. `git branch -d` the merged-and-pushed branches; `rmdir` the empty container.
+4. Delete branches per "Branches" in Step 4; `rmdir` the empty container.
 
 If any step fails, keep going with the independent ones and report the failure with its
 actual error. Per the environment-failure rule, retry a broken tool at most twice, then hand
@@ -273,6 +314,8 @@ its URL in the report so the user can remove it from the gallery.
 
 ### 残っているもの（要ユーザー対応）
 - <item> — <why it was left, and what to do>
+- branch <name> — 残置条件 <1–4 の番号>: <inventory fact>（a kept branch with no cited
+  condition is a bug in this close; delete it instead）
 
 ### ユーザーに報告のみ（チケット化していない）
 - <refactor idea / debt note>
@@ -289,8 +332,8 @@ Stop and hand back, leaving the workspace as it is, on any of:
 
 - An external write fails, or its tracker CLI is missing / unauthenticated.
 - `ExitWorktree(action="remove")`, `git wt -d`, `git worktree remove` or `git branch -d`
-  fails. Report the path and command; never escalate to `--force`, `-D`, or an unproven
-  `discard_changes` on your own judgment — a git refusal is information (the worktree is
+  fails. Report the path and command; never escalate to `--force`, an unsanctioned `-D`, or
+  an unproven `discard_changes` on your own judgment — a git refusal is information (the worktree is
   dirty, the branch is unmerged), so re-check the inventory instead; an `ExitWorktree`
   refusal despite `discard_changes: true` means the tool could not remove it at all.
 - A residual item's routing is genuinely ambiguous.
