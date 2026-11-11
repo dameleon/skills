@@ -18,9 +18,6 @@
 | [`incremental-commit`](incremental-commit/) | 変更を論理単位・物理単位に分割してコミットする。 |
 | [`jj-commit`](jj-commit/) | Jujutsu (jj) でのコミット / プッシュを扱う。 |
 | [`memory-gc`](memory-gc/) | 全プロジェクトの auto-memory を棚卸し・検証し、承認後に GC する。 |
-| [`plan-refinement`](plan-refinement/) | 標準 planner のプランを 5 軸で機械的に精緻化する。 |
-| [`plan-review`](plan-review/) | 外部 LLM CLI で実装プランをレビューし改善する。 |
-| [`planner-eval`](planner-eval/) | plan 段に挟む介入の効果を ablation で empirical に測る。 |
 | [`test-design`](test-design/) | 結合 / 外部結合テストのケースを設計し、独立レビューで検証する。 |
 
 ## Install

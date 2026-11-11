@@ -12,7 +12,7 @@ description: >
   OK / NG / partial / unverifiable verdicts with `file:line` evidence,
   plus concrete fix suggestions for every gap. This is NOT a general
   code-quality, architecture, security, or design review — use
-  `cross-review`, `code-review`, or `plan-review` for those. Scope is
+  `cross-review` or `code-review` for those. Scope is
   strictly "does the implementation satisfy the original instruction?".
 argument-hint: "[issue-number | pr-number | acceptance-criteria-text] [--base ref]"
 ---
@@ -230,7 +230,6 @@ The verifier scope is narrow on purpose — overlap with neighboring skills woul
 | Skill | Their scope | What `completion-check` does NOT do that they do |
 |---|---|---|
 | `cross-review` / `code-review` / `copilot-review` | General code quality, architecture, security, performance | Style critique, refactor suggestions, security audits — even if the code is ugly, if it satisfies the criterion the verdict is OK |
-| `plan-review` | Quality of a plan document before implementation | Plan-vs-plan critique; `completion-check` runs *after* implementation |
 | `fix-issue` | Apply fixes for review feedback or issues | `completion-check` only reports gaps + proposed fixes; it does not edit files |
 
 If the user asks for "review", default to `cross-review` / `code-review`. Use `completion-check` only when the question is specifically about acceptance fit ("did we actually complete the task?").

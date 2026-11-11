@@ -223,6 +223,6 @@ With `triage` and nothing open, say so and show 最新状況 instead of inventin
   (`post`), with the flow's PR as 発生元.
 - **closing** collects residual items at the end of a session. When an inbox exists, its
   handoff comment should be a `post` to the inbox rather than a new unrelated ticket.
-- **completion-check / plan-review** may surface gaps — they are 課題 or 未決 candidates.
+- **completion-check** may surface gaps — they are 課題 or 未決 candidates.
 
 Ask once if a detail is genuinely the user's call; otherwise act and say what you assumed.
