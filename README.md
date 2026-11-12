@@ -16,8 +16,6 @@
 | [`feature-inbox`](feature-inbox/) | epic / feature 単位の inbox issue。未決・課題・報告・引継ぎを人間とエージェントが共有し、サマリとトリアージ支援を行う。 |
 | [`herdr`](herdr/) | Herdr v2 の中で、`hc --skill` / `herdr-app --skill` の最新マニュアルを読ませる入口。v1 の `herdr` コマンドは使わせない。 |
 | [`incremental-commit`](incremental-commit/) | 変更を論理単位・物理単位に分割してコミットする。 |
-| [`jj-commit`](jj-commit/) | Jujutsu (jj) でのコミット / プッシュを扱う。 |
-| [`memory-gc`](memory-gc/) | 全プロジェクトの auto-memory を棚卸し・検証し、承認後に GC する。 |
 | [`test-design`](test-design/) | 結合 / 外部結合テストのケースを設計し、独立レビューで検証する。 |
 
 ## Install
