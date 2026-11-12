@@ -10,8 +10,6 @@
 | [`closing`](closing/) | 作業の締め。状態を棚卸しし、引継ぎを記録し、安全が実出力で示せる片付けだけを承認なしで行う。 |
 | [`codex-review`](codex-review/) | codex CLI を使ったコード / プランのレビューと、指摘に基づく修正。 |
 | [`completion-check`](completion-check/) | 受入条件の充足を、自己申告を読まずコードから独立検証する。 |
-| [`copilot-review`](copilot-review/) | GitHub Copilot CLI を使ったコード / プランのレビューと修正。 |
-| [`cross-review`](cross-review/) | 外部 LLM CLI（Codex / Gemini）による多観点レビューと、重大度ルールに基づく自動修正。 |
 | [`cursor-delegate`](cursor-delegate/) | 小さく明確なタスクを Cursor agent CLI へ直接委譲し(Claude の subagent を挟まない)、受入チェックの exit code で判定する。 |
 | [`feature-inbox`](feature-inbox/) | epic / feature 単位の inbox issue。未決・課題・報告・引継ぎを人間とエージェントが共有し、サマリとトリアージ支援を行う。 |
 | [`herdr`](herdr/) | Herdr v2 の中で、`hc --skill` / `herdr-app --skill` の最新マニュアルを読ませる入口。v1 の `herdr` コマンドは使わせない。 |
