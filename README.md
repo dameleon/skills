@@ -6,7 +6,7 @@
 
 | スキル | 概要 |
 |---|---|
-| [`agent-flow`](agent-flow/) | ローカルで完結する軽量マルチエージェント実装フロー（設計 → 実装 → テスト → PR → レビュー → 修正）。 |
+| [`agent-flow`](agent-flow/) | pstack の playbook を、設計から opened なセルフレビュー済み PR まで通す実行ハーネス。GitHub の tracking issue を黒板にする（pstack plugin・gh・Issues が前提）。 |
 | [`closing`](closing/) | 作業の締め。状態を棚卸しし、引継ぎを記録し、安全が実出力で示せる片付けだけを承認なしで行う。 |
 | [`codex-review`](codex-review/) | codex CLI を使ったコード / プランのレビューと、指摘に基づく修正。 |
 | [`completion-check`](completion-check/) | 受入条件の充足を、自己申告を読まずコードから独立検証する。 |

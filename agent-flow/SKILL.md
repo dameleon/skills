@@ -1,212 +1,143 @@
 ---
 name: agent-flow
 description: >-
-  Local, lightweight multi-agent implement workflow. A blackboard inside an isolated git worktree is
-  the hand-off channel between agents — on-disk Markdown (PLAN.md / TASKS.md / README.md, the default)
-  or a GitHub tracking issue (github mode, for team-visible / cross-machine flows). Turns a design
-  (from plan mode, a ticket, or a one-line task) into a checklist subagents execute: design,
-  implementation (app + tests + lint + /simplify), testing, PR, post-PR inline review with severity
-  triage, and fixes. The execution shape — gate placement plus the engine driving run (subagent /
-  goal / ralph) — is decided at design time and encoded in TASKS.md, so run just follows it. The local
-  blackboard is disposable (the PR holds history); a github-mode issue persists and auto-closes when
-  the PR merges. Subcommands: start (worktree + blackboard + design), run (dispatch pending tasks,
-  honoring gates), done (verify pushed / PR exists, then clean up). Use this (and /agent-flow) whenever
-  the user hands a design or approved plan to agents for automated multi-step implementation — e.g.
-  "実装フローを回して", "このプランで実装を進めて", "タスクをエージェントに渡して実装", "設計から実装まで自動で",
-  "githubモードで", "issueで管理して". Not for a single quick edit that needs no worktree, design, or
-  task hand-off.
-argument-hint: "[start|run|done] [task description or flow slug]"
+  Durable harness that runs a pstack playbook end to end, from design to an opened, self-reviewed PR.
+  pstack (the cursor/plugins plugin) supplies how the work is done — playbooks, architect / arena /
+  interrogate, real-artifact verification. agent-flow adds a GitHub tracking issue as the blackboard
+  (goal, design, step checklist, decision log) that survives sessions and machines, the worktree,
+  stops before irreversible steps, and post-PR self-review and triage. One entry point walks Frame,
+  Design, Build, Verify, Ship, Close; it starts before the design, so an approved plan is input, not
+  a substitute. Use this (and /agent-flow) whenever the user hands over work for agents to design and
+  implement through to a PR, or resumes such a flow — "実装フローを回して", "このプランで実装を進めて",
+  "設計から実装まで自動で", "タスクをエージェントに渡して実装", "issue #12 のフローを再開". Requires the pstack
+  plugin, gh auth, and GitHub Issues. Not for a single quick edit that needs no design or hand-off.
+argument-hint: "[task description | tracking issue number or URL]"
 ---
 
 # Agent Flow
 
-A local, multi-agent implementation workflow. The whole flow revolves around a small **blackboard** — three Markdown files that live inside a dedicated git worktree and act as shared memory that agents hand off through:
+agent-flow is a thin, durable harness around **pstack**. The two are orthogonal:
 
-- **PLAN.md** — design decisions, architecture, and the chosen execution shape.
-- **TASKS.md** — a living checklist of tasks, each with a goal and a done-criterion. This is the control surface: `run` reads it to decide what to do next.
-- **README.md** — the minimal context for the flow (overview, prerequisites, the *necessary* relations — not the full ticket).
+- **pstack decides how the work is done.** Which playbook fits, how the shape is chosen, how code is delegated, what counts as verified, how a PR reads.
+- **agent-flow decides where the state lives and when to stop.** A GitHub tracking issue holds the goal, the design, the step checklist, and the decision log. A worktree holds the code. Stops sit only in front of irreversible steps.
 
-Agents never pass state in memory. They read and write these files on disk, so any agent in any session can pick up where the last one left off, and the flow survives interruptions. When everything is shipped, the worktree (and with it the blackboard) is removed — the durable record is the PR.
+Do not restate pstack here or in a brief. Read its files and follow them; this skill only adds the state, the stage order, and the few overrides listed in `references/pstack.md`.
 
-## Storage modes — where the blackboard lives
+## Prerequisites
 
-The blackboard's *medium* is a swappable dimension; the control logic (phases, gates, engine, roles, the run loop) is identical across modes. The mode is recorded in the `storage:` field (TASKS.md header in local mode, the issue's meta block in github mode).
+These are assumptions, not modes. If one is missing, say which in one line and stop.
 
-| | `local` (default) | `github` |
+- The **pstack plugin** is installed in Claude Code (`pstack@cursor-plugins`).
+- `gh auth status` succeeds, the repo is on GitHub, and Issues are enabled.
+
+Before anything else in a session, resolve pstack and read its adapter and mode skill — `references/pstack.md` has the command and the list of pstack files this skill uses.
+
+## Entry
+
+One entry point, no subcommands.
+
+| Invocation | Meaning |
+|---|---|
+| `/agent-flow <task or ticket>` | Start a new flow at **Frame**. |
+| `/agent-flow` | Resume the active flow. If there are several, list them and ask which. |
+| `/agent-flow <issue number or URL>` | Resume that flow. |
+
+Find active flows from the `.agent-flow/issue` pointer in any worktree (`git worktree list --porcelain`), else from open issues labelled `agent-flow`. On resume, read the issue body, take the meta block's `stage:` as the position, and follow pstack's `playbooks/session-pickup.md`: the trail is authoritative, so do not redo finished work, but check an inherited claim against the real artifact before building on it.
+
+## Stages
+
+| Stage | Where | What happens | Who | Details |
+|---|---|---|---|---|
+| **Frame** | main repo, read-only | Restate the goal, pick the playbook, create the tracking issue | this session | `references/design.md` |
+| **Design** | main repo, scratch dir for prototypes | The playbook's pre-code steps: trace, shape, verification predicate, decomposition. Recorded in the issue | this session | `references/design.md` |
+| **Build** | worktree | Delegate one verifiable unit at a time, check it, tick it | delegates | `references/build.md` |
+| **Verify** | worktree | An agent that did not write the code proves the change on the real artifact | verifier | `references/build.md` |
+| **Ship** | PR | Open the PR ready for review, post the self-review, triage and fix | delegates + this session | `references/ship.md` |
+| **Close** | — | Final summary on the issue, then hand cleanup to the `closing` skill | this session | `references/ship.md` |
+
+Read the reference for a stage before acting in it.
+
+**This session is the pstack operator chat.** pstack says the chat that receives `/poteto-mode` owns the playbook, the todo list, and every spawn. Here that chat is the agent-flow session, and the tracking issue's checklist is the todo list. Design is never delegated: pstack keeps the design with the owner, and judgment that needs the session's own model stays in the session.
+
+## Choosing the playbook
+
+Pick at Frame and record it in the meta block's `playbook:`.
+
+| Work | `playbook:` | Leads with |
 |---|---|---|
-| Blackboard | `.agent-flow/{PLAN,TASKS,README}.md` in the worktree | a single GitHub **tracking issue** (body = control surface, comments = activity log) |
-| Read / write the control surface | `Read` / `Edit` the file | `gh issue view --json body` / `gh issue edit --body-file` — **single-writer: only `run` edits the body** |
-| Visibility / resumability | local to the machine | team-visible, resumable from any machine |
-| `done` | removes the worktree → the blackboard is gone (PR is the record) | removes the worktree; the **issue persists** and auto-closes when the PR merges (never deleted) |
-| Needs | nothing | network + `gh` auth + Issues enabled on the repo |
+| New or changed behavior | `feature` | the data shape, then `architect` |
+| A defect | `bug-fix` | a reproduction on the real surface, then the root cause |
+| Structure changes, behavior does not | `refactoring` | a pinned behavior contract |
+| None of the above (copy, config, a mechanical edit) | `generic` | nothing — implement, verify, PR, review |
 
-`local` is the default. Choose `github` when the flow should be visible to a team, resumable from another machine, or tracked as a durable issue — the user opts in (e.g. "githubモードで" / "issueで管理"); a flow seeded from a `gh issue` is a natural cue to *offer* it. **All github-mode specifics live in `references/github-mode.md` — read it before any github-mode operation.** The reproduction is faithful (Markdown ↔ Markdown) with a few documented adaptations: YAML frontmatter → a leading HTML-comment meta block; `@role` tags → backticked `` `@role` `` (a bare `@role` renders as a GitHub @-mention); and the body is capped at **65,536 characters** (counted in characters, not bytes), so an oversized PLAN spills to a comment or a linked doc.
+`generic` has no pstack playbook file. Its Design is one paragraph, and it still gets the Verify stage and the self-review. Large, cross-cutting, or unattended work that no playbook fits goes through pstack's `figure-it-out` skill at Design, and `playbook:` records `figure-it-out`.
 
-## Subcommands
+## The tracking issue
 
-Parse the first argument:
-
-| Arg | Phase | Details |
-|---|---|---|
-| `start` | Set up the worktree + blackboard, run/serialize the design, seed TASKS.md | `references/start.md` |
-| `run` | Dispatch the next pending task(s) to subagents, honoring phase gates | `references/run.md` |
-| `done` | Verify the branch is pushed / PR exists, then remove the worktree | `references/done.md` |
-
-**Inference when the first argument is not a subcommand:**
-- If there is no active flow (no worktree carries a `.agent-flow/` directory) → treat the arguments as a **task description and run `start`**.
-- If an active flow exists and no args were given → continue with **`run`**.
-- `done` is normally explicit; `run` proposes it once every task is checked off.
-
-Read the matching reference file before acting — each phase has details that don't belong in this always-loaded overview.
-
-## Runtime (Cursor / Claude Code)
-
-| Concern | Cursor | Claude Code |
-|---|---|---|
-| Invoke this skill | `/agent-flow` or ask to run agent-flow | `/agent-flow` |
-| Create the worktree and move in | create per "Worktree resolution" below, then `move_agent_to_root` with the worktree path | `EnterWorktree(name=<branch>)` — the harness creates it (see below) |
-| Re-enter an existing worktree | `move_agent_to_root` with the worktree path | `EnterWorktree(path=<worktree>)` |
-| Leave worktree session | `move_agent_to_root` back to the main repo path | `ExitWorktree(action="keep")` to leave it in place; at `done`, remove per `references/done.md` Step 3 |
-| Dispatch `@role` tasks | `Task` tool (`generalPurpose`, `explore`, `shell`, …) | subagent / Task — use a **valid** type: `general-purpose` (code roles), `Plan` (design), `Explore` (search); prefer `senior`/`generic-coder` if defined. Never use Cursor names or `coder` (run.md). |
-| Plan-style design | `SwitchMode` → plan, or `Task` | `Plan` agent |
-| Run engine (gateless) | `subagent` only | `subagent` / `/goal` / `/ralph-loop` (ralph-wiggum) |
-
-When dispatching subagents, always pass absolute worktree and blackboard paths. If the session cannot be moved, use `git -C <worktree>` and absolute file paths instead.
-
-## Where the blackboard lives (local mode)
-
-Inside the flow's worktree at `.agent-flow/`:
-
-```
-<worktree>/.agent-flow/
-├── PLAN.md
-├── TASKS.md
-└── README.md
-```
-
-In **github mode** the control surface lives in the tracking issue, not on disk, and **`start` does not create a worktree** unless the user explicitly asks (the issue needs no local checkout) — the worktree is created at `run`, when code work begins. Once it exists, `.agent-flow/` holds only a one-line `issue` pointer so a fresh `run`/`done` can rediscover the flow from it; until then the flow is rediscovered from the tracking issue itself (the `agent-flow` label / its URL). See `references/github-mode.md`. Either way the directory is excluded the same way.
-
-Keep it out of commits without touching the repo's tracked `.gitignore` (which would itself be a change to review). Add it once to the shared exclude file — this covers the main repo and every worktree, and is idempotent:
-
-```bash
-EXCLUDE="$(git rev-parse --git-path info/exclude)"
-grep -qxF '.agent-flow/' "$EXCLUDE" || printf '.agent-flow/\n' >> "$EXCLUDE"
-```
-
-## Worktree resolution (precedence)
-
-The implementation work is isolated in its own worktree. A project that wraps `git worktree` (to copy `.env`, enforce a tool, etc.) will leave the worktree unbootable if you bypass it.
-
-The **slug is a bare kebab name** with no `feat/` / `fix/` prefix — the prefix is added only when forming the branch. Derive the branch as `<type>/<slug>`, where `<type>` is `fix` for bug work and `feat` for a feature.
-
-**Claude Code** — let the harness create it: `EnterWorktree(name=<branch>)`. Creation runs through the environment's `WorktreeCreate` hook when one is configured (a user- or project-level hook wrapping `git wt`, for example), which is where path, base branch and file copying are decided — so do not run `git worktree add` or `git wt` yourself. To start from a base other than the repo's default branch, create the branch first (`git branch --no-track <branch> <base>`) and then call `EnterWorktree(name=<branch>)`; a git-wt-style hook checks out an existing branch as-is (verify with `git branch --show-current` after entering). Without a hook the harness uses `.claude/worktrees/<name>` on branch `worktree-<name>`; accept that rather than fighting it. Record the path the tool reports — later steps and every subagent dispatch need it.
-
-**Cursor** (no harness hook) — pick the creation mechanism in this order:
-
-1. **Project rule** — `.cursor/rules/*worktree*`, `.claude/rules/*worktree*`, `CLAUDE.md` / `AGENTS.md` worktree sections, or a repo tool like `git wt`.
-2. **User rule** — a global convention (e.g. worktrees under `.wt/<flat-name>`, base branch from the repo's default).
-3. **Fallback** — raw `git worktree add -b <branch> <path> <base>`.
-
-Default path when no rule applies: `<repo>/.wt/<slug>` (flat name, no slashes); branch `<type>/<slug>` from `origin/<default-branch>`.
-
-## The TASKS.md schema (the control surface)
-
-TASKS.md is plain Markdown — a checklist, not JSON. Every operation `run` needs is a grep away (find the next `- [ ]`, detect gates, check for completion), and a checklist is the most natural thing for many agents to append to without breaking it.
+One issue per flow, one PR per flow. The issue **body** is the live control surface and its **comments** are the append-only decision log. `references/issue.md` is the full contract; the shape is:
 
 ```markdown
----
+<!-- agent-flow:meta
 flow: add-foo-endpoint
 branch: feat/add-foo-endpoint
-pr:                       # filled in after the PR is opened
-phase: 2                  # pointer to the current phase
-engine: subagent          # subagent (default) | goal | ralph — goal/ralph only on a gateless flow
-storage: local            # local (default) | github — see "Storage modes"
----
-# TASKS
+playbook: feature
+stage: build
+pr:
+-->
 
-## Phase 1: 詳細設計  <!-- gate: review -->
-- [x] API スキーマ確定 @design
-  - goal: エンドポイントと型が PLAN.md と一致する
-  - done: PLAN.md の API 節が更新済み
+## 目的
+<the goal and the smallest change that meets it>
 
-## Phase 2: 実装  <!-- gate: none -->
-- [ ] ハンドラ実装 @implement (depends: Phase1)
-  - goal: 正常系・異常系を満たす
-  - done: ユニットテストが green
-- [ ] ブラウザ動作確認 @test
+## 設計
+<chosen shape and the rejected one, the done predicate, the throughput checkpoint, irreversible steps>
+
+## 手順
+- [x] 1. Trace the affected subsystem
+- [ ] 4. Delegate code-writing
+  - [x] 4a. handler for POST /foo
+    - verify: `npm test -- foo.handler` exits 0; `curl -X POST :3000/foo` returns 201
+  - [ ] 4b. ...
+- [ ] ⏸ 承認: 本番 DB へのマイグレーション実行
+- [ ] 独立検証
+- [ ] PR 作成
+- [ ] セルフレビュー
 ```
 
-This same schema drives github mode, with two transcription rules (`references/github-mode.md`): the header moves into a leading HTML-comment meta block in the issue body (no YAML frontmatter in issues), and every `@role` is backticked — `` `@implement` `` — so GitHub doesn't render it as an @-mention. Phase headings, gate markers, checkboxes, and `goal:`/`done:` are unchanged.
+The top-level items are the playbook's steps, copied in order. Units of work nest under the step that delegates code, each with a `verify:` line that names what to run and what must be seen. A `⏸ 承認` item is a stop.
 
-Reading rules:
-- `storage:` (header) — the blackboard medium: `local` (default, on-disk files) or `github` (a tracking issue). See "Storage modes."
-- `engine:` (header) — what drives `run`: `subagent` (default), `goal`, or `ralph`. See "Choosing the engine." `goal`/`ralph` are valid only on a gateless flow.
-- `## Phase N: <name>  <!-- gate: review|approve|none -->` — a phase boundary and its gate. `run` **stops at a gate** (`review` = run a review; `approve` = ask the user) and continues through `none`. **A gateless flow runs end-to-end** — whether by the `subagent` loop running straight through or by a `goal`/`ralph` engine. This is how the design's chosen execution shape becomes the runtime behavior.
-- `- [ ] <task> @<role>` — a task and which agent role handles it: `@design`, `@implement`, `@test`, `@refactor`, `@pr`, `@pr-review`, `@address-review`, `@review`, `@fix`. `[x]` = done. (Roles are spelled out in `references/run.md`: `@implement` carries the app→test→lint→`/simplify` inner loop; `@pr-review` generates our own review on the open PR; `@address-review` responds to externally-authored PR review; `@review` is the pre-PR diff/design review.)
-- `goal:` / `done:` — the task's goal and its objective completion criterion. `done:` is required; `goal:` is recommended but may be omitted when `done:` alone is self-explanatory (e.g. a verification `@test` task).
-- `(depends: ...)` — an ordering hint; tasks are otherwise taken top-to-bottom.
+There is no local blackboard. `.agent-flow/issue` in the worktree is a one-line locator, nothing more.
 
-A **phase is a gate-delimited group of tasks** — it may hold any number of `@role` tasks, and its gate fires *when the phase completes*: the checkpoint you pass before advancing to the next phase. So `gate: review` on a 詳細設計 phase means "review the finished design before implementing"; `gate: approve` on an 実装 phase means "get human sign-off after implementing, before the PR phase." Put the work you want checkpointed inside the phase; its gate guards leaving it. A true one-pass flow is a **single `gate: none` phase** holding every task — its gate never fires, so the loop runs straight through:
+## When to stop
 
-```markdown
-## Phase 1: 実装  <!-- gate: none -->
-- [ ] 文言を i18n キーへ置換 @implement
-  - done: 既存テストが green のまま
-- [ ] テスト確認 @test
-  - done: ユニットテスト green
-- [ ] PR 作成（draft / PR テンプレ準拠） @pr
-  - done: ドラフト PR が開かれ、ヘッダ pr: が埋まる
-```
+pstack's Autonomy section governs, with nothing added on top:
 
-In a gateless flow `@pr` opens a draft PR with no human stop — that is the intended consequence when the user has accepted shipping without a checkpoint.
+- **Proceed** on anything reversible. Show the design in the issue and keep going; do not ask for approval of a plan.
+- **Stop at a `⏸ 承認` item.** Design places one in front of every irreversible step: a migration against a real resource, a deploy, deleting data, a message to someone outside the run, a force-push to a shared branch. Opening a PR is reversible and never gets one.
+- **A multi-hour run earns one checkpoint.** When Design sizes the work at hours, present the framing and wait once before Build.
+- **Session overrides** ("止まらずに", "寝るので進めて") remove the multi-hour checkpoint. They do not remove a `⏸ 承認`.
+- A product or preference call that no experiment can settle goes to the user. A fork an experiment can settle gets a prototype instead of a question.
 
-### Choosing gates — the design's main decision
+Never merge. Merging stays the user's step, and the issue closes when the PR merges.
 
-Where you place gates is *the* control-flow decision, and it should follow the work's risk, not the user's surface phrasing:
+## Models and seats
 
-- **`approve`** — stop for a human. Use before a step with an **irreversible side effect**: a schema/data migration run against a real resource, a deploy, an external publish/send — or when the user explicitly wants to sign off in person ("見せて確認したい" / "マージ前に確認"). Opening a *draft* PR is **not** irreversible (it can't merge itself), so "about to open a PR" does not by itself warrant an `approve`.
-- **`review`** — run an automated / LLM review (e.g. the `cross-review` skill) and fold findings back as `@fix` tasks; no human stop. Cues like "レビューにかけて" / "指摘がほしい" map here — but mind the who-acts note below: a first-person "レビューしたい" is `approve`, not `review`.
-- **`none`** — no checkpoint, the loop flows straight through. Use for pure-additive, low-risk work whose `done:` criteria are objective (the tests turn green).
+pstack's defaults stand: follow its Subagents section and its per-role lines, mapped through its Claude Code adapter. Pass `model` (and `effort`) explicitly on every `Agent` call, and never use `subagent_type: "fork"`.
 
-Disambiguate by *who acts*, not the keyword: a first-person "自分が見たい / 確認したい / 設計をレビューしたい" is a human checkpoint → `approve`; "レビューにかけて / 指摘がほしい" (have it reviewed by a tool or another agent) → `review`.
+A panel seat whose model is not a Claude model runs through herdr when this session is inside herdr, so the seat is a real second vendor. `references/pstack.md` has the procedure.
 
-**Prefer an externally-observable checkpoint over a locally-blocking one.** An `approve` gate before the PR stops the run session *inside the worktree* — nothing pushed, nothing visible; if the user steps away, finished work sits undetectably idle. A pushed **draft PR** is the opposite: externally visible (GitHub, CI, notifications) and safe, because a draft can't merge itself. So **when the user hasn't pinned this down, default to a gateless flow that runs straight through to a draft PR, then self-reviews it**: a single `gate: none` implementation phase (`@implement` → optional `@test` → `@pr`), then a `gate: none` phase with one `@pr-review` task, then a `gate: none` 修正 phase for the `@fix` tasks it appends. The checkpoint is the open, self-reviewed draft PR — one human touchpoint, relocated from a silent local prompt to an observable artifact. Reserve `approve` for the irreversible-side-effect steps above. (A trivial change may drop the `@pr-review` phase; a fully gateless flow with no `@pr-review` is also eligible for the `goal`/`ralph` engines.)
+## Invariants
 
-Phase boundaries follow checkpoints, not code layers: group everything a single gate should guard into one phase, and don't split by layer (API / front / test) when no checkpoint sits between the layers. The flow's terminal artifact is a *draft* PR — merging is the user's manual step after `done`, so the draft PR itself is the default pre-merge checkpoint; add an `approve` gate only to guard an irreversible step *before* the PR opens.
+- **Once the worktree exists, all writes happen in it.** Design is read-only in the main repo and prototypes live in a scratch dir. The worktree is created at the first write the flow needs, which is the reproduction for a bug fix, the pin for a refactoring, and the first unit otherwise.
+- **Hand-off is by absolute path.** Every brief carries the absolute worktree path and tells the delegate to work inside it.
+- **Only this session edits the issue body.** Delegates work, commit, and report. Re-fetch the body immediately before each edit, because a person may have ticked a box in the UI.
+- **The author's check is not the verdict.** Verify is done by an agent that did not write the code, at a named SHA. `INCONCLUSIVE` is not a pass.
+- **Nothing out of scope stays in the checklist.** A finding the PR will not address becomes its own issue, linked from the PR. The tracking issue closes on merge and takes unchecked boxes with it.
+- **Other trackers are not this skill's business.** Do not read from, post to, or route anything to a feature inbox or any issue other than this flow's own tracking issue and its follow-ups.
 
-**Two review shapes.** A *pre-PR* review fits the `gate: review` checkpoint: when a phase completes, `@review` runs `cross-review`/`codex-review` on the diff or finished design and folds findings into `@fix` — no PR, no human stop. A *post-PR* review is a `@pr-review` task placed in its own `gate: none` phase after `@pr` (a task, not a gate — so it never double-runs with `gate: review`): it runs `pr-review-toolkit:review-pr`, posts the findings to the open PR as inline comments, and triages by severity — must-fix → in-scope `@fix`; clearly out-of-scope → a follow-up issue (it must leave TASKS.md, which `done` destroys); ambiguous → ask the user. **This is part of the default shape** (above): the draft PR's self-review is what makes the PR a real checkpoint, not just an artifact — drop the `@pr-review` phase only for a trivial change or when the user declines comments on the PR ("PR コメント要らない"). Its conditional ask is an interior human touchpoint, but by then the PR is already open and observable, so it never hides finished work — a flow that includes `@pr-review` runs under `subagent` (which is therefore the default engine). Responding to *externally-authored* review on the PR — a human / Copilot reviewer — is a separate role, `@address-review` (see `references/run.md`); since external review usually lands after the flow would `done`, it may mean keeping the worktree or re-attaching one.
+## Conventions
 
-### Choosing the engine — what drives `run`'s loop
-
-Once the gates are placed, decide *what mechanism* drives the loop. This is a design-time consideration that crystallizes into an **applicability check** the moment a flow is set up: for each engine, ask "does it apply here?" in order — the answer falls out of the shape you just chose. Engines are Claude Code mechanisms; under Cursor, fall back to `subagent`.
-
-1. **Any gate present (or an `@pr-review` task)?** A flow with a mid-way `review`/`approve` gate — or a `@pr-review` task, whose severity triage can ask the user — **must** use `subagent`: `/goal` and `ralph` are whole-session convergence loops that cannot stop at an interior checkpoint. Since `@pr-review` is in the default shape, the **default engine is `subagent`**; only a gateless flow with no `@pr-review` is eligible for `goal`/`ralph`.
-2. **A single end-state the session can *demonstrate in its own transcript*?** (tests exit 0, no `- [ ]` left in TASKS.md, a queue drained, a size budget met). If not → `subagent`.
-3. **Character of the work:** heterogeneous tasks / worth parallelizing / fresh context per task helps → **`subagent`** (the default). Migration / backlog-drain / "iterate until the condition holds," stop when an evaluator confirms → **`goal`**. Iterative self-verifying refinement (greenfield, tighten-until-clean), stop on a fixed phrase → **`ralph`**.
-
-**The engine choice rewrites the work instruction — that *is* the check's payoff, not a side effect:**
-
-| Engine | `run` invokes | The instruction becomes |
-|---|---|---|
-| `subagent` (default) | the per-task dispatch loop | each task's `@role` + `goal:` / `done:` (unchanged) |
-| `goal` | `/goal "<condition>"` in the worktree session | a single **completion condition** phrased around *demonstrable* output (the evaluator reads only the transcript) + constraints + a turn cap (`or stop after N turns`) |
-| `ralph` | `/ralph-loop "<prompt>" --completion-promise "<phrase>" --max-iterations <n>` | a **re-feed prompt** ("read TASKS.md, do the next `- [ ]` in `<worktree>`, commit, then stop; if none remain output `<phrase>`") + the exact phrase + a max-iterations cap |
-
-Record the pick in TASKS.md's `engine:` header and explain it (with the exact condition / phrase + cap for `goal`/`ralph`) in PLAN.md's 制御フロー section. The blackboard pairs especially well with `ralph`: TASKS.md *is* the across-iteration progress state, so each re-feed reads it, does one item, ticks it, commits — no "what's left?" drift. **Default when nothing forces the choice: `subagent`.**
-
-## Invariants that keep the flow correct
-
-- **The worktree is the default workspace.** Once a flow's worktree exists, *every* operation defaults into it — the run session itself, subagent dispatches, ad-hoc edits, commits, tests — and never touches the main repo / default branch unless the user explicitly directs otherwise. `start` enters the worktree, `run` re-enters it before any write, and a mid-flow request stays in it. (Design done *before* the flow existed — Mode A — is naturally outside; the rule binds from worktree-creation onward, and the skill imposes no fixed order between designing and starting the flow.) This matters doubly for the `goal` / `ralph` engines, which run in the *current* session: that session must be inside the worktree first. **github mode defers the worktree**: `start` skips creating it unless the user explicitly asks (the issue is the blackboard and needs no checkout), so it first comes into being at `run` when code work begins — see `references/github-mode.md`.
-- **Hand-off is by absolute path.** Every subagent dispatch carries the absolute worktree path and the absolute blackboard paths, and tells the subagent to operate inside the worktree (start with the worktree as cwd, or use `git -C <worktree>`). Subagents inherit the session cwd, but being explicit means a stray `git commit` can never land on the wrong branch.
-- **TASKS.md is always updatable.** Mid-implementation or mid-review, append the next task to the right phase. The living checklist *is* the plan; re-read it after every task because it may have grown.
-- **Cleanup is guarded.** `done` removes the worktree (and the blackboard) only after confirming the work is committed, pushed, and a PR exists. The blackboard is disposable precisely because the durable history is the PR; never destroy un-pushed work. **In github mode the blackboard is the tracking issue, which is *not* disposable**: `done` removes only the worktree and leaves the issue open (it auto-closes when the PR merges); never delete the issue.
-- **Only `run` writes the github-mode body.** When `storage: github`, the tracking-issue body is single-writer — only the `run` orchestrator edits it (read-modify-write, re-fetching immediately before each edit since a human may have toggled a checkbox in the UI). Subagents do work, commit, and *report back*; they never edit the body, though they may post comments. This avoids lost-update races (issue bodies have no compare-and-swap) and respects GitHub's secondary rate limits.
-
-## Project / user conventions to honor
-
-- PRs: create as **draft** and use `.github/PULL_REQUEST_TEMPLATE.md` if present.
-- Commits: use the `/incremental-commit` skill if available, run from inside the worktree.
-- Tickets (when a design is seeded from one): use the project's preferred CLI (`gh`, `jira`, `backlog`) rather than pasting the whole ticket — README.md keeps only the necessary relations.
-- Reviews: `@pr-review` uses `pr-review-toolkit:review-pr` for findings, then posts them as PR inline comments via `mcp__github` (`add_comment_to_pending_review` → `pull_request_review_write`) or `gh api .../pulls/{n}/comments` — review-pr itself does not post. Pre-PR review uses `cross-review` / `codex-review`.
-- Follow-ups: out-of-scope findings become tracking issues (`github-issues` skill, else `gh issue create`) linked from the PR — never left as un-checked TASKS.md items, which `done` removes with the blackboard. In github mode they are still *separate* issues (linked from both the PR and the tracking issue), not stray unchecked boxes in the tracking issue, which closes when the PR merges.
-- GitHub mode (`storage: github`): the medium-specific procedure — preflight, creating the tracking issue, the body layout, read/write primitives, the comment policy, and engine interplay — lives in `references/github-mode.md`. Read it before any github-mode `start` / `run` / `done`.
+- **PR**: opened ready for review, never a draft, with `Closes #<tracking issue>` in the body. Use `.github/PULL_REQUEST_TEMPLATE.md` when the repo has one, else pstack's body shape.
+- **Commits**: `/incremental-commit`, run inside the worktree, one commit per verified unit.
+- **Before the PR**: `/simplify` where pstack says `/deslop`, applied by the workspace rule (new logic, refactors, multi-file changes yes; docs, config, a few lines no; say so in the PR body when skipped).
+- **Self-review**: `/pr-review-toolkit:review-pr`, posted to the PR as review comments.
+- **Seed tickets**: pull with `gh` and distill into 目的; never paste a ticket wholesale.

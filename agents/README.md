@@ -35,10 +35,12 @@ values exactly `senior-coder` / `generic-coder` so agent-flow's preference picks
 
 ## How agent-flow uses them
 
-agent-flow defaults to the always-present `general-purpose`; if these two are defined it
-**prefers** them for `@implement` / `@fix` / `@refactor` (generic by default, senior for
-heavy work). Nothing breaks if they are absent — that is the portability contract
-(the agent-flow skill's `run.md`). The model tier is the main differentiator; the system prompt also
+**agent-flow no longer dispatches to these.** Since it became a harness around pstack, its
+delegates are `pstack:poteto-agent` with an explicit model per role (the agent-flow skill's
+`references/pstack.md`). The two agents remain useful for ad-hoc delegation outside a flow.
+
+Before that change, agent-flow preferred them over `general-purpose` for `@implement` /
+`@fix` / `@refactor`. The model tier is the main differentiator; the system prompt also
 bakes in the "act, don't just report" and "a red lint may be tooling noise" guards that
 caused empty-handed subagent reports.
 
