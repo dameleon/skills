@@ -7,8 +7,9 @@ One GitHub issue is the whole blackboard for a flow. Its **body** is the live co
 All must hold before creating anything. If one fails, say which in one line and stop. Retry once only when the failure looks like a network error.
 
 1. `gh auth status` succeeds.
-2. The target repo is the one the PR will open against: `gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef`.
+2. The target repo is the one the PR will open against: `gh repo view --json nameWithOwner,hasIssuesEnabled,defaultBranchRef,viewerPermission`.
 3. `hasIssuesEnabled` is `true`.
+4. `viewerPermission` is `WRITE`, `MAINTAIN`, or `ADMIN`. The flow creates a label, pushes a branch, and opens a PR, and `gh auth status` succeeding says nothing about this repo. With several accounts logged in, the active one may be the wrong one; say which account is active and stop. Do not switch accounts yourself.
 
 ## Body
 
@@ -111,7 +112,8 @@ Plain words. Evidence is a pointer (commit SHA, `file:line`, PR number, artifact
 
 - **Label and title.** Every tracking issue carries the `agent-flow` label and the title `agent-flow: <human-readable phrase>`. The phrase describes the work; it is not the slug.
   ```bash
-  gh label create agent-flow --color ededed 2>/dev/null || true
+  gh label list --search agent-flow --json name --jq '.[].name' | grep -qx agent-flow \
+    || gh label create agent-flow --color ededed
   gh issue list --label agent-flow --state open --json number,title,url
   ```
 - **Pointer.** Once the worktree exists (before that, only the label finds the flow), `<worktree>/.agent-flow/issue` holds the issue URL on one line. Keep it out of commits through the shared exclude file, not the tracked `.gitignore`:
