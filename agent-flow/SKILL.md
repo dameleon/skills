@@ -38,18 +38,20 @@ One entry point, no subcommands.
 
 | Invocation | Meaning |
 |---|---|
-| `/agent-flow <task or ticket>` | Start a new flow at **Frame**. |
+| `/agent-flow <task>` | Start a new flow at **Frame**. |
 | `/agent-flow` | Resume the active flow. If there are several, list them and ask which. |
-| `/agent-flow <issue number or URL>` | Resume that flow. |
+| `/agent-flow <issue number or URL>` | Resume it if it is a tracking issue. Otherwise it is a seed ticket: start a new flow from it. |
 
-Find active flows from the `.agent-flow/issue` pointer in any worktree (`git worktree list --porcelain`), else from open issues labelled `agent-flow`. On resume, read the issue body, take the meta block's `stage:` as the position, and follow pstack's `playbooks/session-pickup.md`: the trail is authoritative, so do not redo finished work, but check an inherited claim against the real artifact before building on it.
+An issue is a tracking issue when it carries the `agent-flow` label and its body starts with `<!-- agent-flow:meta`. Any other issue is a seed ticket, linked from the new flow as `関連: #<n>` and never used as the blackboard.
+
+Find active flows from the `.agent-flow/issue` pointer in any worktree (`git worktree list --porcelain`), else from open issues labelled `agent-flow`. On resume, read the issue body, take the meta block's `stage:` as the position, and follow pstack's `playbooks/session-pickup.md`: the trail is authoritative, so do not redo finished work, but check an inherited claim against the real artifact before building on it. A flow at `stage: closed` is resumed only to handle review that arrived later (`references/ship.md`).
 
 ## Stages
 
 | Stage | Where | What happens | Who | Details |
 |---|---|---|---|---|
 | **Frame** | main repo, read-only | Restate the goal, pick the playbook, create the tracking issue | this session | `references/design.md` |
-| **Design** | main repo, scratch dir for prototypes | The playbook's pre-code steps: trace, shape, verification predicate, decomposition. Recorded in the issue | this session | `references/design.md` |
+| **Design** | main repo, read-only; the worktree once a bug fix or refactoring must write | The playbook's pre-code steps: trace, shape, verification predicate, decomposition. Recorded in the issue | this session | `references/design.md` |
 | **Build** | worktree | Delegate one verifiable unit at a time, check it, tick it | delegates | `references/build.md` |
 | **Verify** | worktree | An agent that did not write the code proves the change on the real artifact | verifier | `references/build.md` |
 | **Ship** | PR | Open the PR ready for review, post the self-review, triage and fix | delegates + this session | `references/ship.md` |
@@ -68,9 +70,10 @@ Pick at Frame and record it in the meta block's `playbook:`.
 | New or changed behavior | `feature` | the data shape, then `architect` |
 | A defect | `bug-fix` | a reproduction on the real surface, then the root cause |
 | Structure changes, behavior does not | `refactoring` | a pinned behavior contract |
-| None of the above (copy, config, a mechanical edit) | `generic` | nothing — implement, verify, PR, review |
+| None of the above, and small (copy, config, a mechanical edit) | `generic` | nothing — implement, verify, PR, review |
+| None of the above, and large, cross-cutting, or unattended | `figure-it-out` | that skill's own framing and workflow design |
 
-`generic` has no pstack playbook file. Its Design is one paragraph, and it still gets the Verify stage and the self-review. Large, cross-cutting, or unattended work that no playbook fits goes through pstack's `figure-it-out` skill at Design, and `playbook:` records `figure-it-out`.
+`generic` has no pstack playbook file. Its Design is a reduced list (`references/design.md`), and it still gets the Verify stage and the self-review.
 
 ## The tracking issue
 
@@ -92,27 +95,32 @@ pr:
 <chosen shape and the rejected one, the done predicate, the throughput checkpoint, irreversible steps>
 
 ## 手順
-- [x] 1. Trace the affected subsystem
-- [ ] 4. Delegate code-writing
-  - [x] 4a. handler for POST /foo
+- [x] 設計
+  - [x] Trace the affected subsystem
+  - [x] architect for the shape
+  - [x] Throughput checkpoint
+- [ ] 実装
+  - [x] a. handler for POST /foo
     - verify: `npm test -- foo.handler` exits 0; `curl -X POST :3000/foo` returns 201
-  - [ ] 4b. ...
-- [ ] ⏸ 承認: 本番 DB へのマイグレーション実行
+  - [ ] ⏸ 承認: 本番 DB へのマイグレーション実行
+  - [ ] b. マイグレーションを実行
+    - verify: ...
 - [ ] 独立検証
 - [ ] PR 作成
 - [ ] セルフレビュー
+- [ ] レビュー修正
 ```
 
-The top-level items are the playbook's steps, copied in order. Units of work nest under the step that delegates code, each with a `verify:` line that names what to run and what must be seen. A `⏸ 承認` item is a stop.
+The six top-level items are the same for every flow, and each is ticked by one stage. The playbook's pre-code steps sit under `設計`. Units of work sit under `実装`, each with a `verify:` line that names what to run and what must be seen. A `⏸ 承認` item is a stop, placed directly before the unit that performs the irreversible step.
 
 There is no local blackboard. `.agent-flow/issue` in the worktree is a one-line locator, nothing more.
 
 ## When to stop
 
-pstack's Autonomy section governs, with nothing added on top:
+These follow pstack: its Autonomy section, `worker.md`, and the one checkpoint `figure-it-out` allows a long run.
 
 - **Proceed** on anything reversible. Show the design in the issue and keep going; do not ask for approval of a plan.
-- **Stop at a `⏸ 承認` item.** Design places one in front of every irreversible step: a migration against a real resource, a deploy, deleting data, a message to someone outside the run, a force-push to a shared branch. Opening a PR is reversible and never gets one.
+- **Stop at a `⏸ 承認` item.** Design places one in front of every irreversible step: a migration or other write against a real resource, a deploy, deleting data, a force-push to a shared branch, a message to a customer or anyone outside the work. Opening a PR and commenting on this flow's own issue, PR, and follow-up issues are reversible and never get one.
 - **A multi-hour run earns one checkpoint.** When Design sizes the work at hours, present the framing and wait once before Build.
 - **Session overrides** ("止まらずに", "寝るので進めて") remove the multi-hour checkpoint. They do not remove a `⏸ 承認`.
 - A product or preference call that no experiment can settle goes to the user. A fork an experiment can settle gets a prototype instead of a question.
@@ -121,23 +129,26 @@ Never merge. Merging stays the user's step, and the issue closes when the PR mer
 
 ## Models and seats
 
-pstack's defaults stand: follow its Subagents section and its per-role lines, mapped through its Claude Code adapter. Pass `model` (and `effort`) explicitly on every `Agent` call, and never use `subagent_type: "fork"`.
+pstack's defaults stand, including the Fable seat in its panels: follow its Subagents section and its per-role lines, mapped through its Claude Code adapter. Pass `model` (and `effort`) explicitly on every `Agent` call, with no exception, and never use `subagent_type: "fork"`.
 
-A panel seat whose model is not a Claude model runs through herdr when this session is inside herdr, so the seat is a real second vendor. `references/pstack.md` has the procedure.
+A panel seat whose model is not a Claude model runs through herdr when this session is inside herdr, so the seat is a real second vendor. Outside herdr it runs on `sonnet`, named explicitly. `references/pstack.md` has the procedure.
 
 ## Invariants
 
-- **Once the worktree exists, all writes happen in it.** Design is read-only in the main repo and prototypes live in a scratch dir. The worktree is created at the first write the flow needs, which is the reproduction for a bug fix, the pin for a refactoring, and the first unit otherwise.
+- **Once the worktree exists, all writes happen in it.** Before that, nothing is written to the repo, and prototypes live in a scratch dir. The worktree is created at the first write the flow needs, which is the reproduction for a bug fix, the pin for a refactoring (both during Design), and the first unit otherwise.
 - **Hand-off is by absolute path.** Every brief carries the absolute worktree path and tells the delegate to work inside it.
 - **Only this session edits the issue body.** Delegates work, commit, and report. Re-fetch the body immediately before each edit, because a person may have ticked a box in the UI.
+- **Verified work is pushed.** Push the branch after every ticked unit, so the flow can be picked up from another machine.
 - **The author's check is not the verdict.** Verify is done by an agent that did not write the code, at a named SHA. `INCONCLUSIVE` is not a pass.
 - **Nothing out of scope stays in the checklist.** A finding the PR will not address becomes its own issue, linked from the PR. The tracking issue closes on merge and takes unchecked boxes with it.
 - **Other trackers are not this skill's business.** Do not read from, post to, or route anything to a feature inbox or any issue other than this flow's own tracking issue and its follow-ups.
 
 ## Conventions
 
+A project or user rule on any of these outranks the default given here.
+
 - **PR**: opened ready for review, never a draft, with `Closes #<tracking issue>` in the body. Use `.github/PULL_REQUEST_TEMPLATE.md` when the repo has one, else pstack's body shape.
-- **Commits**: `/incremental-commit`, run inside the worktree, one commit per verified unit.
-- **Before the PR**: `/simplify` where pstack says `/deslop`, applied by the workspace rule (new logic, refactors, multi-file changes yes; docs, config, a few lines no; say so in the PR body when skipped).
-- **Self-review**: `/pr-review-toolkit:review-pr`, posted to the PR as review comments.
+- **Commits**: `/incremental-commit`, run inside the worktree, each verified unit committed before the next starts. It may split one unit into several logical commits.
+- **Before the PR**: `/simplify` where pstack says `/deslop`. Default: yes for new logic, refactors, multi-file changes; no for docs, config, a few lines, and say so in the PR body when skipped.
+- **Self-review**: `/pr-review-toolkit:review-pr`, read-only, posted to the PR as one review.
 - **Seed tickets**: pull with `gh` and distill into 目的; never paste a ticket wholesale.

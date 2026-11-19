@@ -122,7 +122,7 @@ finding を「分類」を先に見て、次に「重大度」で処理する。
 
 Agent/Task ツールで起動する。Claude Code では組み込み type を使う(`general-purpose`、読み取り中心の解析は `Explore`)。
 組み込み type は `model` を指定しないと親セッションのモデルを継承するので、**`model` を明示する**:
-case-designer と `Explore` は `"sonnet"`、case-reviewer は `"opus"` を名前で指定する(既定サブエージェントモデルが設定されていても下がらないように。`"fable"` は sub agent に渡さない)。レビューの検出力は成果物の品質に直結するため、ここだけは格下げしない。
+case-designer と `Explore` は `"sonnet"`、case-reviewer は `"opus"` を名前で指定する(既定サブエージェントモデルが設定されていても下がらないように。`"fable"` は sub agent に渡さない)。レビューの検出力は成果物の品質に直結するため、ここだけは opus を下限として固定する。
 Phase 0 で確定した値を **穴埋めして literal で** prompt に渡す(プレースホルダのまま投げない)。
 埋める値: `{skill-dir}`(絶対パス) / `{out-dir}`(絶対パス) / `{target}`(解決済みパス or チケット・URL・本文) /
 `{scope}` / `{style}` / `{ext}`(`output-formats.md` の対応表) / `{template}`(写経元 `templates/cases.*`) / `{test-basis}`(一次情報リスト)。
