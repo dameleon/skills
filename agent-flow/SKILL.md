@@ -39,7 +39,7 @@ One entry point, no subcommands.
 | Invocation | Meaning |
 |---|---|
 | `/agent-flow <task>` | Start a new flow at **Frame**. |
-| `/agent-flow` | Resume the active flow. If there are several, list them and ask which. |
+| `/agent-flow` | Resume the active flow: one whose `stage:` is not `closed`. If there are several, list them and ask which. |
 | `/agent-flow <issue number or URL>` | Resume it if it is a tracking issue. Otherwise it is a seed ticket: start a new flow from it. |
 
 An issue is a tracking issue when it carries the `agent-flow` label and its body starts with `<!-- agent-flow:meta`. Any other issue is a seed ticket, linked from the new flow as `関連: #<n>` and never used as the blackboard.
@@ -138,7 +138,8 @@ A panel seat whose model is not a Claude model runs through herdr when this sess
 - **Once the worktree exists, all writes happen in it.** Before that, nothing is written to the repo, and prototypes live in a scratch dir. The worktree is created at the first write the flow needs, which is the reproduction for a bug fix, the pin for a refactoring (both during Design), and the first unit otherwise.
 - **Hand-off is by absolute path.** Every brief carries the absolute worktree path and tells the delegate to work inside it.
 - **Only this session edits the issue body.** Delegates work, commit, and report. Re-fetch the body immediately before each edit, because a person may have ticked a box in the UI.
-- **Verified work is pushed.** Push the branch after every ticked unit, so the flow can be picked up from another machine.
+- **Finished steps are pushed.** Push the branch after every ticked unit, and after the reproduction or pin, so the flow can be picked up from another machine.
+- **The verified SHA is the shipped SHA.** Everything that changes code or history happens before Verify. After the PR opens, history is not rewritten.
 - **The author's check is not the verdict.** Verify is done by an agent that did not write the code, at a named SHA. `INCONCLUSIVE` is not a pass.
 - **Nothing out of scope stays in the checklist.** A finding the PR will not address becomes its own issue, linked from the PR. The tracking issue closes on merge and takes unchecked boxes with it.
 - **Other trackers are not this skill's business.** Do not read from, post to, or route anything to a feature inbox or any issue other than this flow's own tracking issue and its follow-ups.
@@ -149,6 +150,6 @@ A project or user rule on any of these outranks the default given here.
 
 - **PR**: opened ready for review, never a draft, with `Closes #<tracking issue>` in the body. Use `.github/PULL_REQUEST_TEMPLATE.md` when the repo has one, else pstack's body shape.
 - **Commits**: `/incremental-commit`, run inside the worktree, each verified unit committed before the next starts. It may split one unit into several logical commits.
-- **Before the PR**: `/simplify` where pstack says `/deslop`. Default: yes for new logic, refactors, multi-file changes; no for docs, config, a few lines, and say so in the PR body when skipped.
+- **Before Verify**: `/simplify` where pstack says `/deslop`. Default: yes for new logic, refactors, multi-file changes; no for docs, config, a few lines, and say so in the PR body when skipped.
 - **Self-review**: `/pr-review-toolkit:review-pr`, read-only, posted to the PR as one review.
 - **Seed tickets**: pull with `gh` and distill into 目的; never paste a ticket wholesale.

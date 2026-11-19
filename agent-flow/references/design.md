@@ -21,9 +21,9 @@ The six top-level items of 手順 are fixed (`references/issue.md`). A playbook 
 
 | Playbook | `設計` sub-items (done in Design) | `実装` units (done in Build) | Absorbed elsewhere |
 |---|---|---|---|
-| `feature` | 1 trace, 2 `architect`, 3 throughput checkpoint | 4 delegate code-writing | 5 verify → `独立検証`; 6 rebase → `PR 作成`; 7 `interrogate` → Build, "Contested designs"; 8 → `PR 作成` |
-| `bug-fix` | 1 reproduce, 2 find the cause, 3 plan the fix | 3's delegated implementation | 4 verify → `独立検証`, which reruns the reproduction; 5 stage the commits → `PR 作成`; 6 → `PR 作成` |
-| `refactoring` | 1 pin the contract, 2 name the missing structure, 3 name the target shape | 4 subtract, 5 move in small steps, 7 confirm the change is worth keeping | 6 prove behavior unchanged → `独立検証`, against the pin; 8 → `PR 作成` |
+| `feature` | 1 trace, 2 `architect`, 3 throughput checkpoint | 4 delegate code-writing | 5 verify → `独立検証`; 6 rebase and 7 `interrogate` → Build, "Before Verify"; 8 → `PR 作成` |
+| `bug-fix` | 1 reproduce, 2 find the cause, 3 plan the fix | 3's delegated implementation | 4 verify → `独立検証`, which reruns the reproduction; 5 stage the commits → Build, commit order and "Before Verify"; 6 → `PR 作成` |
+| `refactoring` | 1 pin the contract, 2 name the missing structure, 3 name the target shape | 4 subtract, 5 move in small steps, 7 confirm the change is worth keeping | 6 prove behavior unchanged → `独立検証`, against the pin; 8 rebase → Build, "Before Verify", then `PR 作成` |
 | `generic` | one item: 変更内容と確認方法を決める | the change itself | — |
 | `figure-it-out` | Phase A frame, Phase B design the workflow | the phase list Phase B designed, run under Phase C | Phase D log → issue comments; Phase E → `独立検証` |
 
@@ -41,7 +41,7 @@ Run the `設計` sub-items, ticking each in the issue as it completes.
 ### bug-fix
 
 - **Create the worktree first** (`references/build.md`, "The worktree"). Reproduction and instrumentation write files.
-- **Reproduce it yourself**, on the real surface. pstack keeps this with the owner; it is not a unit and is not delegated. Commit the reproduction (a failing test where there is a cheap test path) on its own, before any fix, and tick the sub-item.
+- **Reproduce it yourself**, on the real surface. pstack keeps this with the owner; it is not a unit and is not delegated. Commit the reproduction (a failing test where there is a cheap test path) on its own, before any fix, push the branch, and tick the sub-item.
 - **Find the cause.** Narrow to one mechanism and confirm it with a run. Design is not complete until then; a fix planned against a guess is not a design.
 - **Remove instrumentation** that was only there to find the cause before the first fix unit starts. It does not ship.
 - **Plan the fix.** The plan goes in 設計, and its pieces become the units of `実装`.
@@ -49,9 +49,9 @@ Run the `設計` sub-items, ticking each in the issue as it completes.
 ### refactoring
 
 - **Create the worktree first.**
-- **Write the pin yourself**: a characterization test, snapshot, or equivalence harness that captures current behavior. Commit it on its own before any structure moves, and tick the sub-item. Type check and lint are not a pin.
+- **Write the pin yourself**: a characterization test, snapshot, or equivalence harness that captures current behavior. Commit it on its own before any structure moves, push the branch, and tick the sub-item. Type check and lint are not a pin.
 - If the cleanup uncovers a missing feature or a real bug, split it into its own flow. This one ships the structural change against the pinned contract.
-- The last unit of `実装` is the session's own check that the change lowered reader load somewhere. If it did not, revert it.
+- The last unit of `実装` is the session's own check that the change lowered reader load somewhere. The session runs it, not a delegate. If the change did not, revert it (`references/build.md` says what happens next).
 
 ### generic
 

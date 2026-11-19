@@ -59,6 +59,8 @@ pstack wins everywhere except these points.
 
 Everything else applies as written: the Subagents defaults, the per-role lines in `pstack-models.md` if that rule exists, and fresh subagents by default.
 
+**A role line of `inherit-parent` or `auto`** means the session's own model. pstack says to omit `model` for it; here, pass the session's model by name instead, so that no call is left to a default. If `setup-pstack` rewrote a non-Claude seat to `inherit-parent`, that seat is no longer a non-Claude seat and the herdr path below will not trigger; put the model's slug back in the line to use it.
+
 **Fable in subagents.** pstack's default panels (`arena runners`, `interrogate reviewers`) each seat one Fable runner, and pstack lets a role escalate to Fable when the user names it or two Opus runs of the same brief fail. Both stand; the owner of this skill chose to keep pstack's defaults. Nowhere else does agent-flow put a subagent on Fable. To change it, edit the panel lines with pstack's `setup-pstack`, not this skill.
 
 ## Delegate briefs
@@ -83,7 +85,7 @@ A seat in a pstack panel (`arena runners`, `arena cross-judge pool`, `interrogat
 1. **Give the seat a directory of its own**, under a scratch directory outside the repo (the session's scratch or temp directory).
    - A candidate or an adversary writes code, so it gets a detached worktree at the commit under test:
      `git -C <repo> worktree add --detach <scratch>/<seat> <sha>`
-     During Design there is no flow branch yet; use the base (`git rev-parse origin/<default-branch>`).
+     Use the flow branch's head once the worktree exists, so the seat sees the reproduction or pin. Before that, use the base (`git rev-parse origin/<default-branch>`).
    - A judge only reads. It gets a plain empty directory, and its brief lists the candidates' absolute paths.
 2. **Pick the launcher.** Run `hc templates`. If a template exists for the seat's model, use it. If not, launch the agent CLI that serves that model with the pstack slug as its model, for example `cursor-agent --model gemini-4-carbon-high`. Launch every seat in the CLI's normal mode, the judge included: a read-only mode cannot write the result file or report back. How the child handles permission prompts is the user's choice, made in the template or in their CLI config; do not add a flag that auto-approves everything on your own.
 3. **Write the brief to a file**, then launch the seat interactive and in the background with the file's content as the first message:

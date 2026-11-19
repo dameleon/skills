@@ -63,7 +63,7 @@ The six top-level items are fixed and are the same for every playbook. Each is t
 | Item | Holds | Ticked by |
 |---|---|---|
 | `設計` | The playbook's steps that come before code is delegated, one sub-item each | Design, when its sub-items are ticked and 設計 is written |
-| `実装` | The units, and any `⏸ 承認` | Build, when every sub-item is ticked |
+| `実装` | The units, and any `⏸ 承認` | Build, when every sub-item is ticked and "Before Verify" is done |
 | `独立検証` | — | Verify, on `VERIFIED` |
 | `PR 作成` | — | Ship |
 | `セルフレビュー` | — | Ship |
@@ -73,7 +73,7 @@ The six top-level items are fixed and are the same for every playbook. Each is t
 
 Rules:
 
-- **Units are the sub-items of `実装`.** One unit per independently checkable result. Every unit has a `verify:` line naming what to run or observe and what must be seen. "Tests pass" alone is not a `verify:` unless the tests exercise the changed behavior.
+- **Units are the sub-items of `実装`.** One unit per independently checkable result. A ticked unit carries the commit it ended on: `- [x] a. <unit> (3a9f1c2)`. Every unit has a `verify:` line naming what to run or observe and what must be seen. "Tests pass" alone is not a `verify:` unless the tests exercise the changed behavior.
 - **`⏸ 承認: ...` is a stop.** It sits immediately before the unit that performs the irreversible step. Only the user's answer ticks it. That unit then runs like any other; when it is an operation rather than code (running a migration, a deploy), this session performs it and records the output.
 - **Fix work nests under `レビュー修正`**, one item per accepted finding, each with its own `verify:`.
 - **The checklist is always appendable.** New units and fixes are added where they belong. Out-of-scope work never is; it becomes a separate issue.
@@ -92,7 +92,7 @@ Post **one comment per boundary**, never one per tick. Every comment notifies su
 | Verify verdict | The verdict, the SHA, who verified, the evidence |
 | A `⏸ 承認` reached | What is waiting and what the user needs to decide it |
 | PR opened | The PR link |
-| Self-review triaged | Counts per bucket, and the follow-up issue links |
+| Review triaged (the self-review, and each later round) | Counts per bucket, and the follow-up issue links |
 | Close | What shipped, the PR link, what stays open |
 
 A pivot that changes the design is the one exception to "per boundary": post it when it happens, and correct `## 設計` in the same pass.
@@ -117,7 +117,9 @@ Plain words. Evidence is a pointer (commit SHA, `file:line`, PR number, artifact
 - **Pointer.** Once the worktree exists (before that, only the label finds the flow), `<worktree>/.agent-flow/issue` holds the issue URL on one line. Keep it out of commits through the shared exclude file, not the tracked `.gitignore`:
   ```bash
   EXCLUDE="$(git rev-parse --git-path info/exclude)"
-  grep -qxF '.agent-flow/' "$EXCLUDE" || printf '.agent-flow/\n' >> "$EXCLUDE"
+  for p in .agent-flow/ .claude/worktrees/; do
+    grep -qxF "$p" "$EXCLUDE" || printf '%s\n' "$p" >> "$EXCLUDE"
+  done
   ```
 
 The canonical state is the issue body. The pointer only finds it.
