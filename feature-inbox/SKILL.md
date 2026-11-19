@@ -218,9 +218,10 @@ With `triage` and nothing open, say so and show 最新状況 instead of inventin
 
 ## Working alongside other skills
 
-- **agent-flow** keeps one tracking issue per flow, which closes with its PR. It files
-  out-of-scope findings as separate issues and does not post to the inbox itself; whether to
-  fold those follow-ups into the inbox with `post` is up to whoever is using the inbox.
+- **agent-flow** keeps one tracking issue per flow, which GitHub closes when its PR merges.
+  It files out-of-scope findings as separate issues and never posts to the inbox. To get a
+  flow's follow-ups or deferred decisions into the inbox, `post` them yourself and cite the
+  flow's PR as 発生元.
 - **closing** collects residual items at the end of a session. When an inbox exists, its
   handoff comment should be a `post` to the inbox rather than a new unrelated ticket.
 - **Review skills** (`code-review`, `codex-review`) may surface gaps — they are 課題 or 未決 candidates.
