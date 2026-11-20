@@ -1,10 +1,10 @@
 ---
 name: closing
 description: >-
-  Close out a stretch of development work (implementation through PR) cleanly: take a
+  Close out a stretch of development work (implementation through PR): take a
   read-only inventory of the work's state (unpushed commits, PR / check status, uncommitted
-  changes, stashes, worktrees, background tasks, cron, watches, temp files), collect
-  what the session leaves behind (deferred review findings, bugs found along the way,
+  changes, stashes, worktrees, background tasks, cron, artifact watches, temp files), collect
+  what the session leaves behind (deferred review findings, existing bugs found along the way,
   unfinished scope), judge whether a handoff record is needed, then act. Cleanup proven safe
   by real command output runs without asking; external writes (comments and new tickets on
   GitHub, Jira, or Backlog) and anything git cannot restore go into one approval request,

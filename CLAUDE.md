@@ -36,7 +36,9 @@ uv run scripts/validate_skills.py ./<skill-dir>  # 指定したスキルだけ
 
 スキルごとに `ok` か `FAIL` と理由を出力し、1 つでも問題があれば終了コード 1 で終わる。スキルを追加・編集したら、コミットの前に実行する。
 
-中身は `agentskills/agentskills` の参照実装 `skills-ref` で、スクリプトが固定したコミットを初回実行時に取得する。素の `skills-ref validate` との違いは 1 点だけで、`argument-hint` を仕様外のフィールドとして扱わない。許容するフィールドはスクリプトの `CLAUDE_CODE_FIELDS` にある。スクリプト自体のテストは `uv run scripts/test_validate_skills.py`。
+中身は `agentskills/agentskills` の参照実装 `skills-ref` で、スクリプトが固定したコミットを uv が取得してキャッシュする。検証の内容が素の `skills-ref validate` と違うのは 1 点だけで、`argument-hint` を仕様外のフィールドとして扱わない。許容するフィールドはスクリプトの `CLAUDE_CODE_FIELDS` にある。渡せるのはスキルのディレクトリで、`SKILL.md` のパスは渡せない。
+
+`skills-ref` の `name` の検査は上の規約より緩く、ASCII 以外の文字や数字も通す。`name` を小文字の英数字とハイフンに限る点は、検証では確かめられないので目で確認する。スクリプト自体のテストは `uv run scripts/test_validate_skills.py`。
 
 ## レイアウトと配布（未確定・参照モデル）
 
