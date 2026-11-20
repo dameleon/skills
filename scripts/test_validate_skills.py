@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 sys.dont_write_bytecode = True  # importing the sibling must not leave __pycache__
-sys.path.insert(0,str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from validate_skills import validate_skill
 
 
