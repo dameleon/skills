@@ -1,5 +1,6 @@
 <!-- agent-flow:meta
 flow: <slug>
+base: <PR の向き先。既定はリポジトリの default branch>
 branch:
 playbook: <feature | bug-fix | refactoring | generic | figure-it-out>
 stage: design

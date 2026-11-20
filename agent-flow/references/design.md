@@ -11,7 +11,7 @@ Frame is read-only. Design is read-only too for `feature` and `generic`, and pro
 3. **Take in what already exists.** A plan approved in plan mode, a design worked out earlier in the conversation, or a ticket is **input**. Do not redo it and do not treat it as finished: Design checks it against what the playbook requires and fills only the gaps. Pull a ticket with `gh issue view` and distill it.
 4. **Pick the playbook** (the table in SKILL.md). For `feature`, `bug-fix`, and `refactoring`, read the playbook file in full.
 5. **Derive the slug.** A short kebab-case name from the subject of the work. If an open tracking issue or a worktree already uses it, stop and ask whether to resume or rename. Never reuse one silently.
-6. **Create the tracking issue** from `templates/ISSUE.md`: the meta block with `stage: design` and an empty `branch:`, 目的, and 手順 with the `設計` sub-items for the chosen playbook (the table below). Leave 設計 as the single line `設計中`. Apply the `agent-flow` label.
+6. **Create the tracking issue** from `templates/ISSUE.md`: the meta block with `stage: design`, `base:` (the default branch from preflight unless the user named another), and an empty `branch:`, 目的, and 手順 with the `設計` sub-items for the chosen playbook (the table below). Leave 設計 as the single line `設計中`. Apply the `agent-flow` label.
 
 Then go straight into Design. Do not hand off and do not ask to proceed.
 

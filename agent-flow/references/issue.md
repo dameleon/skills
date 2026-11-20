@@ -20,6 +20,7 @@ Fill `templates/ISSUE.md`. Issues have no frontmatter, so the header is a leadin
 ```markdown
 <!-- agent-flow:meta
 flow: <slug>
+base: <branch the PR targets>
 branch:
 playbook: feature | bug-fix | refactoring | generic | figure-it-out
 stage: design | build | verify | ship | closed
@@ -30,7 +31,8 @@ pr:
 | Field | Meaning |
 |---|---|
 | `flow` | Bare kebab-case slug, no `feat/` or `fix/` prefix. |
-| `branch` | Empty until the worktree exists. Then the branch actually checked out there (`git branch --show-current`), normally `<type>/<slug>` with `type` one of `feat`, `fix`, `refactor`, `chore`. |
+| `base` | The branch the worktree is cut from and the PR targets. Set at Frame: the default branch from preflight (`defaultBranchRef.name`), unless the user named another. If a resumed issue has no `base:`, add it with the default branch. Wherever these references write `<base>`, it is this value. |
+| `branch` | Empty until the worktree exists. Then the branch actually checked out there (`git branch --show-current`, run inside the worktree), normally `<type>/<slug>` with `type` one of `feat`, `fix`, `refactor`, `chore`. |
 | `playbook` | Chosen at Frame. Changes only if Design shows the work was misclassified; log that as a decision. |
 | `stage` | Where the flow is now. Update it whenever the flow enters a stage, including when it goes back (Verify to Build, Close to Ship). The issue is created at the end of Frame, so the first value is `design`. |
 | `pr` | The PR number, filled when it opens. |
@@ -114,17 +116,12 @@ Plain words. Evidence is a pointer (commit SHA, `file:line`, PR number, artifact
 
 - **Label and title.** Every tracking issue carries the `agent-flow` label and the title `agent-flow: <human-readable phrase>`. The phrase describes the work; it is not the slug.
   ```bash
-  gh label list --search agent-flow --json name --jq '.[].name' | grep -qx agent-flow \
-    || gh label create agent-flow --color ededed
+  gh label list --search agent-flow --json name --jq '.[].name'
+  gh label create agent-flow --color ededed   # only when no line above is exactly "agent-flow"
   gh issue list --label agent-flow --state open --json number,title,url
   ```
-- **Pointer.** Once the worktree exists (before that, only the label finds the flow), `<worktree>/.agent-flow/issue` holds the issue URL on one line. Keep it out of commits through the shared exclude file, not the tracked `.gitignore`:
-  ```bash
-  EXCLUDE="$(git rev-parse --git-path info/exclude)"
-  for p in .agent-flow/ .claude/worktrees/; do
-    grep -qxF "$p" "$EXCLUDE" || printf '%s\n' "$p" >> "$EXCLUDE"
-  done
-  ```
+  Run these as separate commands, and show a failure of `gh label create` rather than hiding it.
+- **Pointer.** Once the worktree exists (before that, only the label finds the flow), `<worktree>/.agent-flow/issue` holds the issue URL on one line. Keep it out of commits through the shared exclude file, not the tracked `.gitignore`. Do this from the main checkout, each time before a worktree is created or re-attached, since the file is per clone: `git rev-parse --path-format=absolute --git-path info/exclude` prints that file's path, and it is one file for the main checkout and every worktree. Read it, and add the lines `.agent-flow/` and `.claude/worktrees/` with the file-editing tool if either is missing. Under a worktree rule that puts worktrees elsewhere inside the repo, the second line is that location's parent directory instead (`references/build.md`, "With a worktree rule").
 
 The canonical state is the issue body. The pointer only finds it.
 
@@ -139,7 +136,7 @@ The canonical state is the issue body. The pointer only finds it.
 Write discipline:
 
 - **Single writer.** Only the agent-flow session edits the body. Delegates and seats never do.
-- **Read, change one thing, write.** Fetch the body to a file, change it with the file-editing tool, and write it back with `--body-file`, as three separate plain commands. Put a comment's text in a file the same way. Inline heredocs holding Markdown that mentions shell commands are easy to mangle and can trip command checks. Re-fetch immediately before each edit. Issue bodies have no compare-and-swap, so a stale write silently erases a box a person just ticked.
+- **Read, change one thing, write.** Fetch the body to a file, change it with the file-editing tool, and write it back with `--body-file`, as three separate plain commands. Put a comment's text in a file the same way. Every such file, here and in `references/ship.md` (PR body, review payload, replies), goes in the session's scratch directory by absolute path, never in the repo or the worktree. Inline heredocs holding Markdown that mentions shell commands are easy to mangle and can trip command checks. Re-fetch immediately before each edit. Issue bodies have no compare-and-swap, so a stale write silently erases a box a person just ticked.
 - **No concurrent body writes**, and no comment per micro-step. Both trip GitHub's secondary rate limits.
 
 ## Lifecycle

@@ -44,7 +44,7 @@ One entry point, no subcommands.
 
 An issue is a tracking issue when it carries the `agent-flow` label and its body starts with `<!-- agent-flow:meta`. Any other issue is a seed ticket, linked from the new flow as `関連: #<n>` and never used as the blackboard.
 
-Find active flows from the `.agent-flow/issue` pointer in any worktree (`git worktree list --porcelain`), else from open issues labelled `agent-flow`. On resume, read the issue body, take the meta block's `stage:` as the position, and follow pstack's `playbooks/session-pickup.md`: the trail is authoritative, so do not redo finished work, but check an inherited claim against the real artifact before building on it. A flow at `stage: closed` is resumed only to handle review that arrived later (`references/ship.md`).
+Find active flows from the `.agent-flow/issue` pointer in any worktree (`git worktree list --porcelain`), else from open issues labelled `agent-flow`. On resume, read the issue body, take the meta block's `stage:` as the position, enter the flow's worktree if it has one (`references/build.md`, "The worktree"), and follow pstack's `playbooks/session-pickup.md`: the trail is authoritative, so do not redo finished work, but check an inherited claim against the real artifact before building on it. A flow at `stage: closed` is resumed only to handle review that arrived later (`references/ship.md`).
 
 ## Stages
 
@@ -52,10 +52,10 @@ Find active flows from the `.agent-flow/issue` pointer in any worktree (`git wor
 |---|---|---|---|---|
 | **Frame** | main repo, read-only | Restate the goal, pick the playbook, create the tracking issue | this session | `references/design.md` |
 | **Design** | main repo, read-only; the worktree once a bug fix or refactoring must write | The playbook's pre-code steps: trace, shape, verification predicate, decomposition. Recorded in the issue | this session | `references/design.md` |
-| **Build** | worktree, addressed by path | Delegate one verifiable unit at a time, check it, tick it | delegates | `references/build.md` |
+| **Build** | worktree | Delegate one verifiable unit at a time, check it, tick it | delegates | `references/build.md` |
 | **Verify** | worktree | An agent that did not write the code proves the change on the real artifact | verifier | `references/build.md` |
 | **Ship** | PR | Open the PR ready for review, post the self-review, triage and fix | delegates + this session | `references/ship.md` |
-| **Close** | — | Final summary on the issue, then hand cleanup to the `closing` skill | this session | `references/ship.md` |
+| **Close** | worktree | Final summary on the issue, then hand cleanup to the `closing` skill | this session | `references/ship.md` |
 
 Read the reference for a stage before acting in it.
 
@@ -82,6 +82,7 @@ One issue per flow, one PR per flow. The issue **body** is the live control surf
 ```markdown
 <!-- agent-flow:meta
 flow: add-foo-endpoint
+base: main
 branch: feat/add-foo-endpoint
 playbook: feature
 stage: build
@@ -135,7 +136,7 @@ A panel seat whose model is not a Claude model runs through herdr when this sess
 
 ## Invariants
 
-- **Once the worktree exists, all writes happen in it.** The session stays in the main checkout and reaches the worktree by absolute path and `git -C`; it does not move in. Before the worktree exists, nothing is written to the repo, and prototypes live in a scratch dir. The worktree is created at the first write the flow needs, which is the reproduction for a bug fix, the pin for a refactoring (both during Design), and the first unit otherwise.
+- **Once the worktree exists, all writes happen in it.** The session enters it with `EnterWorktree(path=...)` and works from inside, so every command and skill that reads the current directory sees the flow's branch. Before the worktree exists, nothing is written to the repo, and prototypes live in a scratch dir. The worktree is created at the first write the flow needs, which is the reproduction for a bug fix, the pin for a refactoring (both during Design), and the first unit otherwise.
 - **Hand-off is by absolute path.** Every brief carries the absolute worktree path and tells the delegate to work inside it.
 - **Only this session edits the issue body.** Delegates work, commit, and report. Re-fetch the body immediately before each edit, because a person may have ticked a box in the UI.
 - **Finished steps are pushed.** Push the branch after every ticked unit, and after the reproduction or pin, so the flow can be picked up from another machine.
@@ -148,7 +149,7 @@ A panel seat whose model is not a Claude model runs through herdr when this sess
 
 A project or user rule on any of these outranks the default given here.
 
-- **PR**: opened ready for review, never a draft, with `Closes #<tracking issue>` in the body. Use `.github/PULL_REQUEST_TEMPLATE.md` when the repo has one, else pstack's body shape.
+- **PR**: opened ready for review, not a draft, with `Closes #<tracking issue>` in the body. Use `.github/PULL_REQUEST_TEMPLATE.md` when the repo has one, else pstack's body shape.
 - **Commits**: `/incremental-commit`, run inside the worktree, each verified unit committed before the next starts. It may split one unit into several logical commits.
 - **Before Verify**: `/simplify` where pstack says `/deslop`. Default: yes for new logic, refactors, multi-file changes; no for docs, config, a few lines, and say so in the PR body when skipped.
 - **Self-review**: `/pr-review-toolkit:review-pr`, read-only, posted to the PR as one review.

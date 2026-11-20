@@ -6,50 +6,83 @@ Build delegates the units one at a time and checks each before the next. Verify 
 
 Create it at the first write the flow needs: during Design for a bug fix or a refactoring, at the first unit otherwise.
 
-**Create it explicitly, and work on it from outside.** `EnterWorktree(name=...)` always makes a new branch with a name of its own choosing, so it cannot give the flow a chosen branch, a chosen base, or an existing branch.
+In this section `<main>` is the absolute path of the main checkout (the first entry of `git worktree list`) and `<worktree>` is the absolute path of the flow's worktree. Keep both; every brief needs the second, and commands written with them work from any directory.
+
+### Before creating or re-attaching it
+
+Still in the main checkout, every time a worktree is about to be created or re-attached on this machine:
+
+- **Look for a worktree rule** of the project or the user: a `WorktreeCreate` hook in settings, a wrapper such as `git wt`, a path convention in CLAUDE.md. If there is one, read "With a worktree rule" below before creating.
+- **Add the exclude lines** (`references/issue.md`, "Locating a flow"). The exclude file lives in the main checkout's git directory, which a session that has entered a worktree may not be allowed to write, and it is per clone, so another machine starts without them.
+
+### Create, Record, Push, Enter
+
+Without a hook, `EnterWorktree(name=...)` makes a new branch with a name of its own choosing, so it cannot give the flow a chosen branch, a chosen base, or an existing branch. **Create** the worktree explicitly instead. Run these one at a time:
 
 ```bash
 git fetch origin
-git worktree add --no-track .claude/worktrees/<slug> -b <type>/<slug> origin/<default-branch>
+git worktree add --no-track <main>/.claude/worktrees/<slug> -b <type>/<slug> origin/<base>
 ```
 
-Then push the empty branch at once: `git -C <worktree> push -u origin <type>/<slug>`. Nothing is lost if this fails, and it is the only real test that this machine can push. `gh` and `git` authenticate separately and can be different accounts, so a passing preflight does not prove it.
+`<type>` is `feat`, `fix`, `refactor`, or `chore`, and `<base>` is the meta block's `base:`. `--no-track` keeps the new branch from tracking the base. Then, in this order:
 
-**Do not move the session into the worktree.** Stay in the main checkout and address the worktree by absolute path: `git -C <worktree> ...` for git, absolute paths for file tools, and the worktree path in every brief. A session moved in with `EnterWorktree(path=...)` is isolated by the harness, which then refuses git commands that carry `-c` options and compound commands that mix `git` or `gh` with other steps, and the tool's own rules say not to leave again without the user asking. Enter only when the user asks for it.
+- **Record.** Write `git -C <worktree> branch --show-current` to the meta block's `branch:` (whatever the worktree really has is the truth), and write the issue URL to `<worktree>/.agent-flow/issue`. Doing this before Push means a flow that stops there can still be found.
+- **Push** the empty branch: `git -C <worktree> push -u origin <type>/<slug>`. This is the only real test that this machine can push. `gh` and `git` authenticate separately and can be different accounts, so a passing preflight does not prove it. If the push is refused, stop before any work is done. Report the error and where the push went (`git -C <worktree> remote get-url --push origin`), and leave the fix to the user; do not switch accounts or rewrite the remote yourself. The worktree and the local branch stay. When the flow resumes, run Push again; do not create them a second time.
+- **Enter**: `EnterWorktree(path=<worktree>)`, and stay for the rest of the flow. Invoking `/agent-flow` is the user's instruction to work in a worktree, which is the condition that tool sets for its use. From here the current directory is the worktree, so plain `git`, the `verify:` commands, and every skill that reads the current directory (`/incremental-commit`, `/simplify`, `/pr-review-toolkit:review-pr`, pstack's `interrogate` and `arena`, `closing`) act on the flow's branch.
 
-- `<type>` is `feat`, `fix`, `refactor`, or `chore`. For another base, replace `origin/<default-branch>`. `--no-track` keeps the new branch from tracking the base; the first `git push -u origin <branch>` sets its real upstream.
-- **To re-attach an existing branch** (a resumed flow whose worktree is gone, or review that arrived after Close):
-  ```bash
-  git worktree prune
-  git fetch origin <branch>
-  git worktree add .claude/worktrees/<slug> <branch>
-  git -C .claude/worktrees/<slug> merge --ff-only origin/<branch>
-  ```
-  `prune` clears a registration left by a deleted directory, and the fast-forward brings a stale local branch up to the remote.
-- **If the project or the user has a worktree rule** (a `WorktreeCreate` hook, a wrapper such as `git wt`, a path convention in CLAUDE.md), follow that instead. A project that wraps worktree creation to copy `.env` or similar leaves a plainly created worktree unbootable.
-- Run `git -C <worktree> branch --show-current` and write that value to the meta block's `branch:`. Whatever the worktree really has is the truth.
-- Keep both `.agent-flow/` and `.claude/worktrees/` out of commits through the shared exclude file, and write the issue URL to `<worktree>/.agent-flow/issue` (`references/issue.md`).
-- Record the absolute path. Every brief needs it.
+**A resumed session starts in the main checkout.** Find the worktree from the meta block's `branch:` and `git worktree list --porcelain`. If `git -C <worktree> rev-parse --abbrev-ref @{u}` fails, the first push never landed: do Push first. Then Enter, before anything else. If the worktree is gone, re-attach it (below).
+
+### Inside an entered worktree
+
+The harness is stricter there. Known so far:
+
+- It refuses git commands that carry `-c` options, such as a push that names a credential helper. Do not add one. If a plain `git push` is refused, that is an access problem: report it as in Push.
+- It refuses compound commands that mix `git` or `gh` with other steps. Run one command per call. If it also refuses the `git commit -m "$(cat <<EOF ...)"` form that `/incremental-commit` uses, write the message to a scratch file and use `git commit -F <file>`.
+- Temporary files (issue bodies, comments, PR bodies, review payloads) go in the session's scratch directory, never in the worktree, where they would show up in `git status` and could be committed.
+- The tool's own rules say not to leave with `ExitWorktree` unless the user asks. The session ends the flow inside the worktree.
+
+### Re-attaching an existing branch
+
+For a resumed flow whose worktree is gone, or review that arrived after Close. Do "Before creating or re-attaching it" first. Then run these one at a time; written with `<main>`, they work from any directory. Use these plain commands even when there is a worktree rule: a rule's hook may cut a fresh branch from the base instead of checking out the existing one. If the rule also prepares the worktree (copies `.env`, installs dependencies), tell the user that step was skipped. Then rewrite the pointer and Enter. If the fetch fails because the remote has no such branch, the first push never landed: go back to Create, with the same branch name.
+
+```bash
+git -C <main> worktree prune
+git -C <main> fetch origin <branch>
+git -C <main> worktree add <main>/.claude/worktrees/<slug> <branch>
+git -C <main>/.claude/worktrees/<slug> merge --ff-only origin/<branch>
+```
+
+`prune` clears a registration left by a deleted directory, and the fast-forward brings a stale local branch up to the remote.
+
+### With a worktree rule
+
+This applies to creating a new worktree only. A project that wraps worktree creation, for example to copy `.env`, leaves a plainly created worktree unbootable, so its rule comes first. Read the hook or wrapper to learn how it names the branch and where it puts the worktree. With a `WorktreeCreate` hook, the base is not the hook's choice: Claude Code passes it from the `worktree.baseRef` setting, which is the remote default branch when unset or `fresh`, and the main checkout's local `HEAD` when `head`.
+
+- **If it can give the flow `<type>/<slug>` cut from `origin/<base>`**, create through it, after `git fetch origin`. With a `WorktreeCreate` hook that is `EnterWorktree(name="<type>/<slug>")`, which creates and enters in one step. Record and Push then run from inside, with plain `git`; if the push is refused, the session stops where it is, inside.
+- **If it cannot** (`base:` is not the default branch, `worktree.baseRef` is `head`, or the rule renames the branch), ask the user which to follow.
+- Wherever this skill writes `<main>/.claude/worktrees/<slug>`, use the path the rule produces. If that path is inside the repo, add its parent directory to the exclude file in place of `.claude/worktrees/`.
 
 ## Build
 
 Set `stage: build`. Then repeat until `実装` has no unticked sub-item, or a `⏸ 承認` is next.
 
 1. **Re-fetch the issue body and take the next unticked unit.** Respect the order Design gave it.
-2. **On a resumed session only, check whether that unit was already finished.** A crash after a commit but before the tick leaves a finished unit unticked. Every tick records the commit it ended on, so compare: the unit is done only when the tree is clean (`git -C <worktree> status --porcelain` is empty), `HEAD` is ahead of the SHA on the last ticked unit, those new commits are this unit's work, and its `verify:` passes. Then tick it. A `verify:` that passes with no new commit proves nothing, because a regression guard such as "the pin stays green" is true before the unit starts. If the tree is dirty, a delegate died mid-unit: read the diff, and either finish and commit it or discard it. Never tick uncommitted work.
+2. **On a resumed session only, check whether that unit was already finished.** A crash after a commit but before the tick leaves a finished unit unticked. Every tick records the commit it ended on, so compare: the unit is done only when the tree is clean (`git status --porcelain` is empty), `HEAD` is ahead of the SHA on the last ticked unit, those new commits are this unit's work, and its `verify:` passes. Then tick it. A `verify:` that passes with no new commit proves nothing, because a regression guard such as "the pin stays green" is true before the unit starts. If the tree is dirty, a delegate died mid-unit: read the diff, and either finish and commit it or discard it. Never tick uncommitted work.
 3. **Run it.**
    - **A code unit is delegated** per `references/pstack.md` ("Delegate briefs"). Take scope and model from the playbook's own delegate step; `generic` has none, so use pstack's `feature, refactoring` line or default. The brief adds:
      - the unit's scope: file paths, the named data shape, what must not change
      - its `verify:` line as the success criterion
-     - "work inside `<worktree>`, commit with `/incremental-commit`, do not touch the tracking issue, report what you ran and what it printed"
+     - "work inside `<worktree>`. Check `pwd` first; if you were not started there, use absolute paths for files and `git -C <worktree>` for git, and run tests from that directory"
+     - the four prohibitions from `references/pstack.md` ("Delegate briefs"), in its words: commit, do not push, do not open a PR, do not touch the tracking issue
+     - "commit in small logical commits, and report what you ran and what it printed"
 
      When the unit's implementation admits several valid shapes, the feature playbook requires `arena` in place of a single delegate. Follow it, with seats per `references/pstack.md`.
    - **A unit that is a judgment or an operation is run by this session**: the refactoring "is it worth keeping" check, or the step behind a `⏸ 承認`.
 4. **Check the unit yourself.** You own the delegate's work. Read the diff and run the `verify:` line; a delegate's "passed" is a claim. If a check passes too easily, suspect the check before the code.
-5. **Tick it, or send it back.** On a pass, confirm the work is committed (commit it if the delegate did not), push the branch, confirm the remote head moved (`git -C <worktree> rev-parse origin/<branch>` after a fetch), and tick the box with the commit appended: `- [x] a. handler for POST /foo (3a9f1c2)`. On a failure, give the fix round to a **fresh** delegate with the original brief, what failed, and the prior report. After repeated failures on one premise, write the premise down and test it directly before another fix.
+5. **Tick it, or send it back.** On a pass, confirm the work is committed (`git status --porcelain` prints nothing; commit it with `/incremental-commit` if the delegate did not), push with `git push`, confirm the remote has it (`git fetch origin <branch>`, then `git rev-parse HEAD origin/<branch>` prints the same SHA twice), and tick the box with the commit appended: `- [x] a. handler for POST /foo (3a9f1c2)`. On a failure, give the fix round to a **fresh** delegate with the original brief, what failed, and the prior report. After repeated failures on one premise, write the premise down and test it directly before another fix.
 6. **Record what a reviewer would need.** A fork chosen, a revert, a discovery that changes 設計. Collect these for the "Build finished" comment. A discovery that changes the design is corrected in 設計 now, with its own comment.
 
-**Push after every commit that ends a step**: each ticked unit, and the reproduction or pin committed during Design (`git push -u origin <branch>` the first time). A pushed branch is reversible and opens no PR, and it is what lets another machine or session pick the flow up.
+**Push after every commit that ends a step**: each ticked unit, and the reproduction or pin committed during Design (`git push`; the upstream was set when the worktree was created). A pushed branch is reversible and opens no PR, and it is what lets another machine or session pick the flow up.
 
 **Commit in the order that proves the work, as you go**: the reproduction before the fix, the pin and the subtraction before the reshape. Order built during Build does not have to be repaired later.
 
@@ -74,8 +107,8 @@ A session override ("止まらずに") does not skip this.
 When the units are done, finish everything that can still change the code or the history, so the SHA that gets verified is the SHA the PR carries. `実装` stays unticked until this section is done.
 
 1. **Contested design → `interrogate`.** If two shapes were close, a reviewer or the user pushed back, or Build exposed doubt about the approach, run `interrogate` on the branch diff. Only findings a run proves survive. Each becomes a unit; go back to the loop.
-2. **`/simplify`**, unless the project has its own rule. Default: run it for new logic, refactors, or multi-file changes; skip it for docs, config, generated files, or a few local lines, and note the skip for the PR body. The worktree is clean, so name the range: the changes in `git diff origin/<base>...HEAD`. If it changes code, rerun the affected units' `verify:` lines and commit.
-3. **Tidy the history only if it needs it.** If the commits are not small, ordered, and each landing on its own, rewrite them now and push with `git push --force-with-lease`. The flow's own branch before its PR exists is not a shared branch, so this needs no `⏸ 承認`. After the PR is open, do not rewrite; add commits.
+2. **`/simplify`**, unless the project has its own rule. Default: run it for new logic, refactors, or multi-file changes; skip it for docs, config, generated files, or a few local lines, and note the skip for the PR body. The worktree is clean, so name the range: the changes in `git diff origin/<base>...HEAD`. If it changes code, rerun the affected units' `verify:` lines, commit, and push.
+3. **Tidy the history only if it needs it.** If the commits are not small, ordered, and each landing on its own, rewrite them now. An interactive rebase is not available to an agent, so rebuild instead: note the old head (`git rev-parse HEAD`), find the fork point with `git merge-base HEAD origin/<base>`, run `git reset <fork point>` (the default mixed reset, which leaves every change unstaged), and commit again in order with `/incremental-commit`. The final tree does not change; confirm it with `git diff <old head> HEAD` printing nothing. This can only split by file, so leave the history alone when the fix would need to split one file's changes. Push with `git push --force-with-lease`. The SHAs on the ticked units are no longer on the branch, so replace each with the new commit that holds the last of that unit's files. The flow's own branch before its PR exists is not a shared branch, so this needs no `⏸ 承認`. After the PR is open, do not rewrite; add commits.
 
 Then tick `実装` and post the "Build finished" comment.
 
@@ -83,10 +116,10 @@ Then tick `実装` and post the "Build finished" comment.
 
 Set `stage: verify`. This is the `独立検証` item.
 
-1. **Name the head.** `git -C <worktree> rev-parse HEAD`. The verdict covers this SHA.
+1. **Name the head.** `git rev-parse HEAD`. The verdict covers this SHA.
 2. **Spawn a verifier that wrote none of the code.** `subagent_type: "general-purpose"`, with `model` and `effort` passed explicitly from pstack's `swarm workers` line or default. Write the brief the way pstack's `swarm` skill writes a worker brief, so that it stands alone:
    - the goal and the done predicate from 設計
-   - the exact SHA and the worktree path
+   - the exact SHA and the absolute worktree path, with the same "check `pwd` first" line a delegate gets
    - how to exercise the change the way a user would, on the surface it ships on: run the CLI, call the endpoint, drive the UI. Tests are part of the evidence, not all of it. For a bug fix, rerun the reproduction. For a refactoring, run the pin.
    - edit nothing; report one of the three verdicts below, with the commands run and their output
 
