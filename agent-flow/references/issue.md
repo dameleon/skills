@@ -11,6 +11,8 @@ All must hold before creating anything. If one fails, say which in one line and 
 3. `hasIssuesEnabled` is `true`.
 4. `viewerPermission` is `WRITE`, `MAINTAIN`, or `ADMIN`. The flow creates a label, pushes a branch, and opens a PR, and `gh auth status` succeeding says nothing about this repo. With several accounts logged in, the active one may be the wrong one; say which account is active and stop. Do not switch accounts yourself.
 
+Preflight is a snapshot. The active account can change during a long run, so when a write to GitHub fails later with a permission error, check `viewerPermission` again before assuming anything else.
+
 ## Body
 
 Fill `templates/ISSUE.md`. Issues have no frontmatter, so the header is a leading HTML comment.
@@ -137,7 +139,7 @@ The canonical state is the issue body. The pointer only finds it.
 Write discipline:
 
 - **Single writer.** Only the agent-flow session edits the body. Delegates and seats never do.
-- **Read, change one thing, write.** Re-fetch immediately before each edit. Issue bodies have no compare-and-swap, so a stale write silently erases a box a person just ticked.
+- **Read, change one thing, write.** Fetch the body to a file, change it with the file-editing tool, and write it back with `--body-file`, as three separate plain commands. Put a comment's text in a file the same way. Inline heredocs holding Markdown that mentions shell commands are easy to mangle and can trip command checks. Re-fetch immediately before each edit. Issue bodies have no compare-and-swap, so a stale write silently erases a box a person just ticked.
 - **No concurrent body writes**, and no comment per micro-step. Both trip GitHub's secondary rate limits.
 
 ## Lifecycle

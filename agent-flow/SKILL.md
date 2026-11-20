@@ -52,7 +52,7 @@ Find active flows from the `.agent-flow/issue` pointer in any worktree (`git wor
 |---|---|---|---|---|
 | **Frame** | main repo, read-only | Restate the goal, pick the playbook, create the tracking issue | this session | `references/design.md` |
 | **Design** | main repo, read-only; the worktree once a bug fix or refactoring must write | The playbook's pre-code steps: trace, shape, verification predicate, decomposition. Recorded in the issue | this session | `references/design.md` |
-| **Build** | worktree | Delegate one verifiable unit at a time, check it, tick it | delegates | `references/build.md` |
+| **Build** | worktree, addressed by path | Delegate one verifiable unit at a time, check it, tick it | delegates | `references/build.md` |
 | **Verify** | worktree | An agent that did not write the code proves the change on the real artifact | verifier | `references/build.md` |
 | **Ship** | PR | Open the PR ready for review, post the self-review, triage and fix | delegates + this session | `references/ship.md` |
 | **Close** | — | Final summary on the issue, then hand cleanup to the `closing` skill | this session | `references/ship.md` |
@@ -135,7 +135,7 @@ A panel seat whose model is not a Claude model runs through herdr when this sess
 
 ## Invariants
 
-- **Once the worktree exists, all writes happen in it.** Before that, nothing is written to the repo, and prototypes live in a scratch dir. The worktree is created at the first write the flow needs, which is the reproduction for a bug fix, the pin for a refactoring (both during Design), and the first unit otherwise.
+- **Once the worktree exists, all writes happen in it.** The session stays in the main checkout and reaches the worktree by absolute path and `git -C`; it does not move in. Before the worktree exists, nothing is written to the repo, and prototypes live in a scratch dir. The worktree is created at the first write the flow needs, which is the reproduction for a bug fix, the pin for a refactoring (both during Design), and the first unit otherwise.
 - **Hand-off is by absolute path.** Every brief carries the absolute worktree path and tells the delegate to work inside it.
 - **Only this session edits the issue body.** Delegates work, commit, and report. Re-fetch the body immediately before each edit, because a person may have ticked a box in the UI.
 - **Finished steps are pushed.** Push the branch after every ticked unit, and after the reproduction or pin, so the flow can be picked up from another machine.

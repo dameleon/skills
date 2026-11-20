@@ -67,10 +67,13 @@ Everything else applies as written: the Subagents defaults, the per-role lines i
 
 Every `Agent` call that spawns a delegate:
 
-- `subagent_type: "pstack:poteto-agent"`, with `model` and `effort` passed explicitly from the role's line or default, mapped by the adapter. The agent file's own `model:` may hold a Cursor slug rather than a Claude Code model name, so never rely on it.
+- `subagent_type: "pstack:poteto-agent"`, with `model` and `effort` passed explicitly from the role's line or default, mapped by the adapter. If the user named a model tier for this run, that wins over the role's line. The agent file's own `model:` may hold a Cursor slug rather than a Claude Code model name, so never rely on it.
 - First line of the prompt: `Read <$PSTACK>/skills/poteto-mode/worker.md before anything else.`
 - Then the goal, the task, the absolute path of `poteto-mode/SKILL.md`, and the absolute worktree path.
 - Nothing else from pstack is restated. The bar in the brief is the whole bar.
+- `worker.md` tells a worker to open PRs. In a flow the session opens the one PR, so say in the brief: commit, do not push, do not open a PR, do not touch the tracking issue.
+
+**If `pstack:poteto-agent` is not an available agent type**, the plugin was installed after this session started; agent types load at session start. Spawn `general-purpose` with the same brief, and add as its second line: read `<$PSTACK>/skills/poteto-mode/SKILL.md` in full before working. Tell the user a new session will pick the agent up.
 
 `worker.md` forbids a delegate from showing a person a question. That holds: only this session asks the user.
 
