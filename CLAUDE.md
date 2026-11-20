@@ -21,16 +21,22 @@ Agent Skills（[agentskills.io](https://agentskills.io/specification) のオー�
 - `name`（必須）: 1〜64 文字。小文字英数字（`a-z` `0-9`）とハイフンのみ。先頭・末尾にハイフン不可、連続ハイフン（`--`）不可。**親ディレクトリ名と完全一致させる**。
 - `description`（必須）: 1〜1024 文字。「何をするスキルか」と「いつ使うか」の両方を書き、エージェントが該当タスクを見分けられるキーワードを含める。`Helps with X.` のような曖昧な一行にしない。
 - `license` / `compatibility`（1〜500 文字、環境要件がある場合のみ）/ `metadata`（文字列 key-value）/ `allowed-tools`（空白区切り、実験的）は任意。
+- 仕様に無いフィールドは書かない。例外は Claude Code 独自の `argument-hint`（スラッシュコマンドの引数ヒント）だけで、このリポジトリでは使ってよい。値は必ず引用符で囲む（`argument-hint: "[path]"`）。`[` で始まる値を囲まずに書くと、検証が frontmatter のパースエラーで落ちる。
 
 本文フォーマットに制約はないが、progressive disclosure を前提に設計する。`name`+`description` は起動時に全スキル分ロードされ、本文はスキル起動時に丸ごとロードされる。よって **`SKILL.md` は 500 行未満**に抑え、詳細は `references/` の個別ファイルへ逃がして必要時だけ読ませる。ファイル参照はスキルルートからの相対パスで、ネストは 1 階層まで。
 
 ## バリデーション
 
-frontmatter と命名規約は、`agentskills/agentskills` の `skills-ref` で検証できる（このリポジトリには未同梱の外部ツール）。
+frontmatter と命名規約は `scripts/validate_skills.py` で検証する。実行には [uv](https://docs.astral.sh/uv/) が要る。
 
 ```bash
-skills-ref validate ./<skill-dir>
+uv run scripts/validate_skills.py              # リポジトリ直下の全スキル
+uv run scripts/validate_skills.py ./<skill-dir>  # 指定したスキルだけ
 ```
+
+スキルごとに `ok` か `FAIL` と理由を出力し、1 つでも問題があれば終了コード 1 で終わる。スキルを追加・編集したら、コミットの前に実行する。
+
+中身は `agentskills/agentskills` の参照実装 `skills-ref` で、スクリプトが固定したコミットを初回実行時に取得する。素の `skills-ref validate` との違いは 1 点だけで、`argument-hint` を仕様外のフィールドとして扱わない。許容するフィールドはスクリプトの `CLAUDE_CODE_FIELDS` にある。スクリプト自体のテストは `uv run scripts/test_validate_skills.py`。
 
 ## レイアウトと配布（未確定・参照モデル）
 
