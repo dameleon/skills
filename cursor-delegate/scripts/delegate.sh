@@ -14,6 +14,10 @@ MODEL="auto"; ROUNDS=2; WORKDIR="$PWD"; ACCEPT=""; TASK=""
 die() { echo "status: failed"; echo "notes: $*"; exit 2; }
 
 while [ $# -gt 0 ]; do
+  # With one argument left, `shift 2` fails and consumes nothing (no `set -e`), so the loop would spin.
+  case "$1" in
+    --accept|--model|--rounds|--workdir) [ $# -ge 2 ] || die "$1 requires a value" ;;
+  esac
   case "$1" in
     --accept)  ACCEPT="${2-}"; shift 2 ;;
     --model)   MODEL="${2-}"; shift 2 ;;
