@@ -6,6 +6,7 @@
 # ///
 """Tests for validate_skills.validate_skill. Run: uv run scripts/test_validate_skills.py"""
 
+import os
 import sys
 import tempfile
 import unittest
@@ -52,6 +53,18 @@ class ValidateSkillTest(unittest.TestCase):
         problems = validate_skill(self.make_skill(frontmatter={"description": "x" * 1025}))
         self.assertEqual(len(problems), 1)
         self.assertIn("1024", problems[0])
+
+    def test_path_ending_in_dotdot_is_resolved(self):
+        skill_dir = self.make_skill()
+        (skill_dir / "sub").mkdir()
+        self.assertEqual(validate_skill(skill_dir / "sub" / ".."), [])
+
+    def test_relative_dot_from_inside_the_skill_passes(self):
+        skill_dir = self.make_skill()
+        cwd = os.getcwd()
+        self.addCleanup(os.chdir, cwd)
+        os.chdir(skill_dir)
+        self.assertEqual(validate_skill(Path(".")), [])
 
     def test_directory_without_skill_md_fails(self):
         empty = self.root / "empty"

@@ -24,6 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 def validate_skill(skill_dir: Path) -> list[str]:
     """Return the problems found in one skill directory (empty if valid)."""
+    skill_dir = skill_dir.resolve()  # the library reads skill_dir.name, which is "" for "."
     if not skill_dir.exists():
         return [f"Path does not exist: {skill_dir}"]
     if not skill_dir.is_dir():
