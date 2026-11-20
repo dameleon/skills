@@ -41,11 +41,12 @@ def validate_skill(skill_dir: Path) -> list[str]:
     return validate_metadata(metadata, skill_dir)
 
 
-def main() -> int:
-    if len(sys.argv) > 1:
-        skill_dirs = [Path(arg) for arg in sys.argv[1:]]
+def main(argv: list[str] | None = None, root: Path = REPO_ROOT) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if args:
+        skill_dirs = [Path(arg) for arg in args]
     else:
-        skill_dirs = [p for p in REPO_ROOT.iterdir() if (p / "SKILL.md").is_file()]
+        skill_dirs = [p for p in root.iterdir() if p.is_dir() and find_skill_md(p) is not None]
     if not skill_dirs:
         print("no skills found")
         return 1
