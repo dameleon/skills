@@ -56,11 +56,17 @@ git -C <main>/.claude/worktrees/<slug> merge --ff-only origin/<branch>
 
 ### With a worktree rule
 
-This applies to creating a new worktree only. A project that wraps worktree creation, for example to copy `.env`, leaves a plainly created worktree unbootable, so its rule comes first. Read the hook or wrapper to learn how it names the branch and where it puts the worktree. With a `WorktreeCreate` hook, the base is not the hook's choice: Claude Code passes it from the `worktree.baseRef` setting, which is the remote default branch when unset or `fresh`, and the main checkout's local `HEAD` when `head`.
+This applies to creating a new worktree only. A project that wraps worktree creation, for example to copy `.env`, leaves a plainly created worktree unbootable, so its rule comes first. Read the hook or wrapper to learn how it names the branch and where it puts the worktree. With a `WorktreeCreate` hook, the base is not the hook's choice: Claude Code passes it a starting ref. Do not trust what that ref will be. The tool describes it as the remote default branch unless `worktree.baseRef` is `head`, but a run with the setting unset started the branch at the main checkout's current `HEAD`, which was another feature branch.
 
-- **If it can give the flow `<type>/<slug>` cut from `origin/<base>`**, create through it, after `git fetch origin`. With a `WorktreeCreate` hook that is `EnterWorktree(name="<type>/<slug>")`, which creates and enters in one step. Record and Push then run from inside, with plain `git`; if the push is refused, the session stops where it is, inside.
-- **If it cannot** (`base:` is not the default branch, `worktree.baseRef` is `head`, or the rule renames the branch), ask the user which to follow.
-- Wherever this skill writes `<main>/.claude/worktrees/<slug>`, use the path the rule produces. If that path is inside the repo, add its parent directory to the exclude file in place of `.claude/worktrees/`.
+Follow these in order.
+
+1. **Settle the branch name.** If the rule gives the branch a name of its own, that name is the flow's branch: use it wherever this list writes `<type>/<slug>`.
+2. **Make sure that name is free.** In the main checkout, after `git fetch origin`, both `git rev-parse --verify --quiet refs/heads/<type>/<slug>` and `git ls-remote --heads origin <type>/<slug>` must print nothing. A hook handed an existing branch checks it out instead of creating one, and step 4 would then throw its commits away. If either prints something, create nothing: tell the user which of the two exists and at what commit, and wait for their instruction. With a new slug from them, start again from step 1.
+3. **Create through the rule.** With a `WorktreeCreate` hook that is `EnterWorktree(name="<type>/<slug>")`, which creates and enters in one step.
+4. **Check the starting point before anything else.** `git rev-parse HEAD origin/<base>` must print the same SHA twice. If it does not, move the branch: `git reset --hard origin/<base>`. This is safe only because step 2 found the name free, so the branch is new, holds no work, and is not pushed. Skipping it puts the other branch's commits into the flow's PR.
+5. **Record and Push** then run from inside, with plain `git`; if the push is refused, the session stops where it is, inside.
+
+Wherever this skill writes `<main>/.claude/worktrees/<slug>`, use the path the rule produces. If that path is inside the repo, add its parent directory to the exclude file in place of `.claude/worktrees/`.
 
 ## Build
 
@@ -135,6 +141,6 @@ Set `stage: verify`. This is the `独立検証` item.
 4. **Audit the receipts.** Check that the commands in the report exist and say what the report claims. Rerun any that the verdict rests on.
 5. **Post the "Verify verdict" comment**: verdict, SHA, verifier model, evidence pointers.
 
-**How long a verdict lasts.** It covers the code, not the commit. A later head whose content is identical (`git diff <verified-sha> HEAD` prints nothing) keeps the verdict; cite both SHAs. A change in behavior gets one fresh verifier at the new head. A change only to wording, comments, or formatting gets none.
+**How long a verdict lasts.** It covers the code, not the commit. A later head whose content is identical (`git diff <verified-sha> HEAD` prints nothing) keeps the verdict; cite both SHAs. A change in behavior gets one fresh verifier at the new head. A change only to wording, comments, or formatting gets none. A change only to tests (`git diff --name-only <verified-sha> HEAD` lists test files and nothing else) gets none either: run the changed tests yourself, and check that they fail when the behavior is broken. Break the behavior in a copy outside the worktree, or confirm `git status --porcelain` is empty once you have put it back.
 
 **Driving the real surface.** pstack's playbooks name `control-ui` and `control-cli`, which ship in a plugin that may not be installed. Use what the project has: a project-local `verify-*` skill, a browser automation skill, or the CLI itself. If nothing can drive the surface, say so in the verdict comment and name what was checked instead. Do not report `VERIFIED` on tests alone when the change has user-visible behavior.

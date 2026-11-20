@@ -147,9 +147,9 @@ A panel seat whose model is not a Claude model runs through herdr when this sess
 
 ## Conventions
 
-A project or user rule on any of these outranks the default given here.
+A project or user rule on any of these outranks the default given here, unless the item says otherwise.
 
-- **PR**: opened ready for review, not a draft, with `Closes #<tracking issue>` in the body. Use `.github/PULL_REQUEST_TEMPLATE.md` when the repo has one, else pstack's body shape.
+- **PR**: opened ready for review, not a draft, with `Closes #<tracking issue>` in the body. This is the owner's choice for flows: a general "open PRs as drafts" default does not outrank it, and an instruction given for this flow does. Use `.github/PULL_REQUEST_TEMPLATE.md` when the repo has one, else pstack's body shape.
 - **Commits**: `/incremental-commit`, run inside the worktree, each verified unit committed before the next starts. It may split one unit into several logical commits.
 - **Before Verify**: `/simplify` where pstack says `/deslop`. Default: yes for new logic, refactors, multi-file changes; no for docs, config, a few lines, and say so in the PR body when skipped.
 - **Self-review**: `/pr-review-toolkit:review-pr`, read-only, posted to the PR as one review.

@@ -8,7 +8,7 @@ Set `stage: ship`. Follow pstack's `playbooks/opening-a-pr.md` for the commits, 
 
 1. **Change nothing.** `/simplify`, the playbook's "rebase" or "stage the commits" step, and any history rewrite were done before Verify (`references/build.md`, "Before Verify"), so the head is the verified SHA. If it is not, go back and verify.
 2. **Push the branch** if anything is unpushed: `git push`.
-3. **Open the PR ready for review**: `gh pr create --head <branch> --base <base> --title <title> --body-file <file>`, without `--draft` unless a project or user rule says PRs open as drafts (SKILL.md, "Conventions"). Name the head and the base rather than leaving them to the current directory, and give the title and body, because without them `gh` prompts and an agent cannot answer.
+3. **Open the PR ready for review**: `gh pr create --head <branch> --base <base> --title <title> --body-file <file>`, without `--draft`. A general rule that PRs default to drafts does not apply here; only an instruction about this flow does (SKILL.md, "Conventions"). Name the head and the base rather than leaving them to the current directory, and give the title and body, because without them `gh` prompts and an agent cannot answer.
    - Body: written to a file first. Use `.github/PULL_REQUEST_TEMPLATE.md` as it is in the worktree when the repo has one, otherwise the shape the playbook gives.
    - The verification part states the verdict, the SHA it covers, and the evidence, or links the issue comment that holds it. If `/simplify` was skipped, say so in one line with the reason.
    - Include `Closes #<tracking issue>`.
@@ -52,7 +52,7 @@ Each accepted finding is an item under `レビュー修正`. Run each one with s
 
 1. Reply citing the commit: on the finding's thread if it has one, otherwise in the one PR comment for body findings.
 2. Resolve a thread you opened yourself (commands below). Leave another reviewer's thread for them to resolve after your reply.
-3. If the fixes changed behavior, run one verifier at the new head and update the verification part of the PR body. Wording-only fixes need none.
+3. If the fixes changed behavior, run one verifier at the new head and update the verification part of the PR body. Wording-only and test-only fixes need none (`references/build.md`, "How long a verdict lasts"); say in the PR body which SHA the verdict covers.
 
 The PR is open, so add commits; do not rewrite history.
 
