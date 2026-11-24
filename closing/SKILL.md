@@ -1,20 +1,19 @@
 ---
 name: closing
 description: >-
-  Close out a stretch of development work (implementation through PR) cleanly: take a
+  Close out a stretch of development work (implementation through PR): take a
   read-only inventory of the work's state (unpushed commits, PR / check status, uncommitted
   changes, stashes, worktrees, background tasks, cron, artifact watches, temp files), collect
-  the residual items the session leaves behind (deferred review findings, existing bugs found
-  along the way, unfinished scope), judge whether a handoff record is needed, then act:
-  cleanup whose safety is provable from real command output runs without asking, while
-  external writes (PR / issue / ticket comments and new tickets on GitHub, Jira, or Backlog)
-  and any step that would destroy information git cannot restore are gathered into a single
-  approval request — and when that request would be empty, the close finishes on its own.
-  Use this whenever the user signals a stretch of work is over and wants it wrapped up —
+  what the session leaves behind (deferred review findings, existing bugs found along the way,
+  unfinished scope), judge whether a handoff record is needed, then act. Cleanup proven safe
+  by real command output runs without asking; external writes (comments and new tickets on
+  GitHub, Jira, or Backlog) and anything git cannot restore go into one approval request,
+  and when that request is empty the close finishes on its own.
+  Use this whenever the user signals the work is over and wants it wrapped up —
   "終わりにする", "作業を締める", "後片付けして", "撤収", "closing", "wrap up",
   "この作業終了で", "引き継ぎ残して終わる" — and especially right after a PR is merged,
   handed off, or abandoned. Not a substitute for committing (/incremental-commit) or PR
-  creation; it closes work that has already reached its end state.
+  creation; it closes work already at its end state.
 argument-hint: "[--to github|jira|backlog] [--dry-run]"
 ---
 
