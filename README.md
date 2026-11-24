@@ -9,18 +9,10 @@
 | [`agent-flow`](agent-flow/) | pstack の playbook を、設計から opened なセルフレビュー済み PR まで通す実行ハーネス。GitHub の tracking issue を黒板にする（pstack plugin・gh・Issues が前提）。 |
 | [`closing`](closing/) | 作業の締め。状態を棚卸しし、引継ぎを記録し、安全が実出力で示せる片付けだけを承認なしで行う。 |
 | [`codex-review`](codex-review/) | codex CLI を使ったコード / プランのレビューと、指摘に基づく修正。 |
-| [`completion-check`](completion-check/) | 受入条件の充足を、自己申告を読まずコードから独立検証する。 |
-| [`copilot-review`](copilot-review/) | GitHub Copilot CLI を使ったコード / プランのレビューと修正。 |
-| [`cross-review`](cross-review/) | 外部 LLM CLI（Codex / Gemini）による多観点レビューと、重大度ルールに基づく自動修正。 |
 | [`cursor-delegate`](cursor-delegate/) | 小さく明確なタスクを Cursor agent CLI へ直接委譲し(Claude の subagent を挟まない)、受入チェックの exit code で判定する。 |
 | [`feature-inbox`](feature-inbox/) | epic / feature 単位の inbox issue。未決・課題・報告・引継ぎを人間とエージェントが共有し、サマリとトリアージ支援を行う。 |
 | [`herdr`](herdr/) | Herdr v2 の中で、`hc --skill` / `herdr-app --skill` の最新マニュアルを読ませる入口。v1 の `herdr` コマンドは使わせない。 |
 | [`incremental-commit`](incremental-commit/) | 変更を論理単位・物理単位に分割してコミットする。 |
-| [`jj-commit`](jj-commit/) | Jujutsu (jj) でのコミット / プッシュを扱う。 |
-| [`memory-gc`](memory-gc/) | 全プロジェクトの auto-memory を棚卸し・検証し、承認後に GC する。 |
-| [`plan-refinement`](plan-refinement/) | 標準 planner のプランを 5 軸で機械的に精緻化する。 |
-| [`plan-review`](plan-review/) | 外部 LLM CLI で実装プランをレビューし改善する。 |
-| [`planner-eval`](planner-eval/) | plan 段に挟む介入の効果を ablation で empirical に測る。 |
 | [`test-design`](test-design/) | 結合 / 外部結合テストのケースを設計し、独立レビューで検証する。 |
 
 ## Install
