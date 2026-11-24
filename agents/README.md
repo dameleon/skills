@@ -1,8 +1,8 @@
 # Sample coder subagents (`senior-coder` / `generic-coder`)
 
-Two **implementation** subagents that give agent-flow a *stable, real* `subagent_type`
-in both Claude Code and Cursor, so a code-producing role never dispatches to a
-non-existent agent (e.g. the Cursor-ism `coder`, which is a hard error in Claude Code).
+Two **implementation** subagents with a *stable, real* `subagent_type` in both Claude Code
+and Cursor, so delegating code work by name never hits a non-existent agent (e.g. the
+Cursor-ism `coder`, which is a hard error in Claude Code).
 They differ by **model tier** — `senior-coder` for design-heavy / cross-cutting work,
 `generic-coder` for well-specified routine work.
 
@@ -31,14 +31,15 @@ When a workspace sets `CLAUDE_CONFIG_DIR` / `CURSOR_CONFIG_DIR`, `~/.claude/agen
 read — install under the config dir, or the agent type silently does not exist.
 
 Identity comes from the `name:` frontmatter, not the filename — keep `name`
-values exactly `senior-coder` / `generic-coder` so agent-flow's preference picks them up.
+values exactly `senior-coder` / `generic-coder` so a dispatch by name finds them.
 
-## How agent-flow uses them
+## Who uses them
 
-agent-flow defaults to the always-present `general-purpose`; if these two are defined it
-**prefers** them for `@implement` / `@fix` / `@refactor` (generic by default, senior for
-heavy work). Nothing breaks if they are absent — that is the portability contract
-(the agent-flow skill's `run.md`). The model tier is the main differentiator; the system prompt also
+Ad-hoc delegation. **agent-flow does not dispatch to these**: it is a harness around pstack,
+and its delegates are `pstack:poteto-agent` with an explicit model per role (the agent-flow
+skill's `references/pstack.md`).
+
+The model tier is the main differentiator; the system prompt also
 bakes in the "act, don't just report" and "a red lint may be tooling noise" guards that
 caused empty-handed subagent reports.
 
