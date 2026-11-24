@@ -113,7 +113,7 @@ A session override ("止まらずに") does not skip this.
 When the units are done, finish everything that can still change the code or the history, so the SHA that gets verified is the SHA the PR carries. `実装` stays unticked until this section is done.
 
 1. **Contested design → `interrogate`.** If two shapes were close, a reviewer or the user pushed back, or Build exposed doubt about the approach, run `interrogate` on the branch diff. Only findings a run proves survive. Each becomes a unit; go back to the loop.
-2. **`/simplify`**, unless the project has its own rule. Default: run it for new logic, refactors, or multi-file changes; skip it for docs, config, generated files, or a few local lines, and note the skip for the PR body. The worktree is clean, so name the range: the changes in `git diff origin/<base>...HEAD`. If it changes code, rerun the affected units' `verify:` lines, commit, and push.
+2. **`/simplify`**, unless the project has its own rule. Default: run it for new logic, refactors, or multi-file changes; skip it for docs, config, generated files, or a few local lines, and note the skip for the PR body. The skill spawns four review agents. For new code of a couple of hundred lines or fewer, read it yourself against the skill's four angles (reuse, simplification, efficiency, altitude) instead, and say so in the "Build finished" comment. The worktree is clean, so name the range: the changes in `git diff origin/<base>...HEAD`. If it changes code, rerun the affected units' `verify:` lines, commit, and push.
 3. **Tidy the history only if it needs it.** If the commits are not small, ordered, and each landing on its own, rewrite them now. An interactive rebase is not available to an agent, so rebuild instead: note the old head (`git rev-parse HEAD`), find the fork point with `git merge-base HEAD origin/<base>`, run `git reset <fork point>` (the default mixed reset, which leaves every change unstaged), and commit again in order with `/incremental-commit`. The final tree does not change; confirm it with `git diff <old head> HEAD` printing nothing. This can only split by file, so leave the history alone when the fix would need to split one file's changes. Push with `git push --force-with-lease`. The SHAs on the ticked units are no longer on the branch, so replace each with the new commit that holds the last of that unit's files. The flow's own branch before its PR exists is not a shared branch, so this needs no `⏸ 承認`. After the PR is open, do not rewrite; add commits.
 
 Then tick `実装` and post the "Build finished" comment.
@@ -122,12 +122,13 @@ Then tick `実装` and post the "Build finished" comment.
 
 Set `stage: verify`. This is the `独立検証` item.
 
-1. **Name the head.** `git rev-parse HEAD`. The verdict covers this SHA.
+1. **Name the head, and check the tree yourself.** `git rev-parse HEAD` gives the SHA the verdict covers, and `git status --porcelain` must print nothing. Do both in the session and write the results into the brief as facts. Do not make them a precondition the verifier must confirm before starting: a verifier whose git read is refused by a hook or a permission check then stops having observed nothing.
 2. **Spawn a verifier that wrote none of the code.** `subagent_type: "general-purpose"`, with `model` and `effort` passed explicitly from pstack's `swarm workers` line or default. Write the brief the way pstack's `swarm` skill writes a worker brief, so that it stands alone:
    - the goal and the done predicate from 設計
    - the exact SHA and the absolute worktree path, with the same "check `pwd` first" line a delegate gets
    - how to exercise the change the way a user would, on the surface it ships on: run the CLI, call the endpoint, drive the UI. Tests are part of the evidence, not all of it. For a bug fix, rerun the reproduction. For a refactoring, run the pin.
    - edit nothing; report one of the three verdicts below, with the commands run and their output
+   - a step that cannot be run is reported as not checked, and the rest still runs. If a step that observes the done predicate could not run, the verdict is `INCONCLUSIVE`
 
    The verdict words are agent-flow's, not swarm's `PASS` / `ISSUES` / `BLOCKED`. State them in the brief.
 3. **Read the verdict.**
@@ -138,7 +139,7 @@ Set `stage: verify`. This is the `独立検証` item.
 | `NOT VERIFIED` | A run shows the predicate does not hold | Add a unit per proven failure, untick `実装`, set `stage: build`, return to Build |
 | `INCONCLUSIVE` | The verifier could not reach the surface, or the evidence is the wrong kind | Not a pass. Fix the way of observing, then verify again |
 
-4. **Audit the receipts.** Check that the commands in the report exist and say what the report claims. Rerun any that the verdict rests on.
+4. **Audit the receipts.** Check that the commands in the report exist and say what the report claims. Rerun any that the verdict rests on. Run the bookkeeping steps the verifier reported as not checked (a git read, the clean-tree check after its runs). That fills in bookkeeping only: your own run never stands in for the verifier observing the done predicate.
 5. **Post the "Verify verdict" comment**: verdict, SHA, verifier model, evidence pointers.
 
 **How long a verdict lasts.** It covers the code, not the commit. A later head whose content is identical (`git diff <verified-sha> HEAD` prints nothing) keeps the verdict; cite both SHAs. A change in behavior gets one fresh verifier at the new head. A change only to wording, comments, or formatting gets none. A change only to tests (`git diff --name-only <verified-sha> HEAD` lists test files and nothing else) gets none either: run the changed tests yourself, and check that they fail when the behavior is broken. Break the behavior in a copy outside the worktree, or confirm `git status --porcelain` is empty once you have put it back.
